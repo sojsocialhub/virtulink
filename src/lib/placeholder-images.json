@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Abstract digital connectivity network",
+      "imageUrl": "https://picsum.photos/seed/virtulink1/1200/600",
+      "imageHint": "digital network connectivity"
+    },
+    {
+      "id": "virtual-number",
+      "description": "Phone with digital numbers overlay",
+      "imageUrl": "https://picsum.photos/seed/virtulink2/600/400",
+      "imageHint": "virtual phone number"
+    },
+    {
+      "id": "esim",
+      "description": "Microchip representation for eSIM",
+      "imageUrl": "https://picsum.photos/seed/virtulink3/600/400",
+      "imageHint": "esim chip technology"
+    },
+    {
+      "id": "vpn",
+      "description": "Secure lock icon on a globe",
+      "imageUrl": "https://picsum.photos/seed/virtulink4/600/400",
+      "imageHint": "vpn security encryption"
+    }
+  ]
 }
