@@ -4,10 +4,11 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import WhatsAppButton from '@/components/support/WhatsAppButton';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'VirtuLink | Virtual Numbers, eSIMs & VPNs',
-  description: 'Professional digital products platform for global connectivity.',
+  title: 'S.O.J VERIFY SMS VTU Hub | Virtual Numbers, eSIMs & VPNs',
+  description: 'Professional digital products platform for global connectivity in Nigeria.',
 };
 
 export default function RootLayout({
@@ -23,13 +24,15 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col bg-background text-foreground bg-pattern">
-        <Navbar />
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
-        <Footer />
-        <WhatsAppButton />
-        <Toaster />
+        <FirebaseClientProvider>
+          <Navbar />
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+          <Footer />
+          <WhatsAppButton />
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );
