@@ -12,9 +12,10 @@ service cloud.firestore {
     }
 
     // Helper to check if user is an admin
-    // This looks up the user's role in the 'users' collection
+    // Refined to handle cases where user document might not exist yet
     function isAdmin() {
       return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -27,7 +28,8 @@ service cloud.firestore {
 
     // Transactions
     match /transactions/{transactionId} {
-      // Users can only read their own transactions. Admins can read everything.
+      // Allow get/list if the user owns the transaction or is an admin
+      // For listing, the query MUST be filtered by userId
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       // Users can create their own transactions
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
