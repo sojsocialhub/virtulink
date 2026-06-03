@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Smartphone, ChevronLeft, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { NETWORKS } from '@/lib/data';
 import Link from 'next/link';
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { doc, addDoc, collection, updateDoc, increment } from 'firebase/firestore';
+import { useFirestore, useUser, useDoc } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -30,12 +30,13 @@ export default function AirtimePage() {
     amount: ''
   });
 
-  // Mock balance check - in real app would use user.walletBalance
-  const walletBalance = 5250; 
+  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+  const walletBalance = userData?.walletBalance || 0;
 
   const handlePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !user) return;
+    if (!db || !user || !userDocRef) return;
 
     const amount = Number(formData.amount);
     if (amount < 100) {
@@ -51,8 +52,13 @@ export default function AirtimePage() {
     setLoading(true);
 
     try {
-      // Create Transaction
-      const transactionData = {
+      // 1. Deduct Balance
+      await updateDoc(userDocRef, {
+        walletBalance: increment(-amount)
+      });
+
+      // 2. Create Transaction
+      await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'airtime',
         network: formData.network,
@@ -60,12 +66,7 @@ export default function AirtimePage() {
         amount: amount,
         status: 'Completed',
         date: new Date().toISOString()
-      };
-
-      await addDoc(collection(db, 'transactions'), transactionData);
-      
-      // Update User Balance (Mock update - in real app use user.uid)
-      // await updateDoc(doc(db, 'users', user.uid), { walletBalance: walletBalance - amount });
+      });
 
       toast({
         title: "Purchase Successful!",
@@ -79,6 +80,7 @@ export default function AirtimePage() {
         requestResourceData: formData
       });
       errorEmitter.emit('permission-error', error);
+      toast({ variant: "destructive", title: "Error", description: "Purchase failed. Check balance." });
     } finally {
       setLoading(false);
     }

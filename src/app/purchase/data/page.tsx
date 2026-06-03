@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Globe, ChevronLeft, CreditCard, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, query, addDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useDoc } from '@/firebase';
+import { collection, query, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function DataPage() {
   const { toast } = useToast();
@@ -23,22 +25,34 @@ export default function DataPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+  const walletBalance = userData?.walletBalance || 0;
+
   const { data: plans, loading: loadingPlans } = useCollection(
     db ? query(collection(db, 'dataPlans')) : null
   );
 
-  const walletBalance = 5250;
-
   const handlePurchase = async () => {
-    if (!db || !user || !selectedPlan || !phoneNumber) return;
+    if (!db || !user || !selectedPlan || !phoneNumber || !userDocRef) return;
 
     if (selectedPlan.price > walletBalance) {
-      toast({ variant: "destructive", title: "Insufficient Balance", description: "Please fund your wallet." });
+      toast({ 
+        variant: "destructive", 
+        title: "Insufficient Balance", 
+        description: "Please fund your wallet to complete this purchase." 
+      });
       return;
     }
 
     setLoading(true);
     try {
+      // 1. Deduct from wallet
+      await updateDoc(userDocRef, {
+        walletBalance: increment(-selectedPlan.price)
+      });
+
+      // 2. Log Transaction
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'data',
@@ -51,12 +65,23 @@ export default function DataPage() {
       });
 
       toast({
-        title: "Data Purchase Successful!",
-        description: `${selectedPlan.name} sent to ${phoneNumber}`
+        title: "Purchase Successful!",
+        description: `${selectedPlan.name} has been sent to ${phoneNumber}`
       });
       router.push('/dashboard');
-    } catch (e) {
-      toast({ variant: "destructive", title: "Purchase Failed", description: "Something went wrong." });
+    } catch (e: any) {
+      const error = new FirestorePermissionError({
+        path: 'transactions',
+        operation: 'create',
+        requestResourceData: { userId: user.uid, amount: selectedPlan.price }
+      });
+      errorEmitter.emit('permission-error', error);
+      
+      toast({ 
+        variant: "destructive", 
+        title: "Transaction Failed", 
+        description: "Could not process purchase. Please try again." 
+      });
     } finally {
       setLoading(false);
     }
