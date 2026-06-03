@@ -1,0 +1,64 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with wallet balance and role",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "walletBalance": { "type": "number", "description": "Current balance in Naira" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["name", "email", "walletBalance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Records of all wallet debits and credits",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["airtime", "data", "funding", "social_log", "number"] },
+        "service": { "type": "string" },
+        "network": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Completed", "Failed"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "status", "date"]
+    },
+    "FundRequest": {
+      "title": "Funding Request",
+      "description": "Manual wallet funding requests for admin approval",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "amount": { "type": "number" },
+        "proofImage": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "status", "date"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/User" },
+      "description": "User profiles and balances"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/backend/entities/Transaction" },
+      "description": "Global transaction logs"
+    },
+    "/fundRequests/{requestId}": {
+      "schema": { "$ref": "#/backend/entities/FundRequest" },
+      "description": "Funding requests for admin review"
+    }
+  }
+}

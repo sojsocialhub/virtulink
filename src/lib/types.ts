@@ -1,31 +1,42 @@
-export type ProductType = 'virtual number' | 'eSIM' | 'VPN subscription';
 
-export interface Product {
+export type TransactionType = 'airtime' | 'data' | 'funding' | 'social_log' | 'number';
+export type TransactionStatus = 'Pending' | 'Completed' | 'Failed';
+export type FundRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface UserProfile {
   id: string;
   name: string;
-  type: ProductType;
-  price: number;
-  description: string;
-  features: string[];
-  imageUrl: string;
+  email: string;
+  walletBalance: number;
+  isAdmin: boolean;
 }
 
-export type OrderStatus = 'Pending' | 'Paid' | 'Completed';
-
-export interface Order {
+export interface Transaction {
   id: string;
   userId: string;
-  productId: string;
-  productName: string;
+  type: TransactionType;
+  service?: string;
+  network?: string;
+  phoneNumber?: string;
   amount: number;
-  status: OrderStatus;
-  createdAt: string;
-  paymentScreenshot?: string;
+  status: TransactionStatus;
+  date: string;
 }
 
-export interface User {
+export interface FundRequest {
   id: string;
-  email: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  proofImage?: string;
+  status: FundRequestStatus;
+  date: string;
+}
+
+export interface ProductPlan {
+  id: string;
   name: string;
-  isAdmin: boolean;
+  price: number;
+  network: string;
+  type: 'airtime' | 'data';
 }

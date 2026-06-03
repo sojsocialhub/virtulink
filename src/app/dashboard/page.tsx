@@ -1,139 +1,102 @@
+
 "use client";
 
-import { Clock, CheckCircle, Package, ExternalLink, Search } from 'lucide-react';
+import { Wallet, Smartphone, Globe, MessageSquare, History, PlusCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { INITIAL_PRODUCTS } from '@/lib/data';
+import Link from 'next/link';
 
-// Mock data for user's orders
-const MOCK_ORDERS = [
-  {
-    id: "ORD-123456",
-    product: INITIAL_PRODUCTS[0],
-    status: "Pending",
-    date: "2024-05-20",
-    amount: 15.00
-  },
-  {
-    id: "ORD-123457",
-    product: INITIAL_PRODUCTS[1],
-    status: "Completed",
-    date: "2024-05-18",
-    amount: 25.00
-  }
-];
+export default function Dashboard() {
+  // Mock balance
+  const walletBalance = 5250;
 
-export default function CustomerDashboard() {
+  const quickActions = [
+    { label: 'Buy Airtime', icon: Smartphone, color: 'bg-blue-100 text-blue-600', href: '/purchase/airtime' },
+    { label: 'Buy Data', icon: Globe, iconColor: 'text-green-600', color: 'bg-green-100 text-green-600', href: '/purchase/data' },
+    { label: 'Social Log', icon: MessageSquare, color: 'bg-purple-100 text-purple-600', href: '/purchase/social' },
+    { label: 'Buy Number', icon: Smartphone, color: 'bg-orange-100 text-orange-600', href: '/purchase/number' },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <header className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold font-headline mb-2">Customer Dashboard</h1>
-          <p className="text-muted-foreground">Manage your digital products and track your order status.</p>
+          <h1 className="text-3xl font-bold font-headline">Hello, Samuel 👋</h1>
+          <p className="text-muted-foreground">Welcome back to S.O.J VTU Hub</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="font-medium">
-            <Search className="mr-2 h-4 w-4" /> Search Orders
+        <Link href="/fund-wallet">
+          <Button className="bg-primary hover:bg-primary/90 font-bold rounded-full px-6">
+            <PlusCircle className="mr-2 h-4 w-4" /> Fund Wallet
           </Button>
+        </Link>
+      </header>
+
+      {/* Wallet Card */}
+      <Card className="bg-primary text-white border-none shadow-xl mb-10 overflow-hidden relative">
+        <div className="absolute right-0 top-0 opacity-10 pointer-events-none">
+          <Wallet className="w-48 h-48 -mr-12 -mt-12" />
         </div>
+        <CardContent className="p-8">
+          <p className="text-primary-foreground/80 font-medium mb-1">Available Balance</p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-bold">₦{walletBalance.toLocaleString()}</span>
+            <span className="text-sm opacity-80">.00</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        {quickActions.map((action) => (
+          <Link key={action.label} href={action.href}>
+            <Card className="hover:ring-1 hover:ring-primary transition-all cursor-pointer h-full border-none shadow-sm ring-1 ring-border">
+              <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-3">
+                <div className={`p-3 rounded-2xl ${action.color}`}>
+                  <action.icon className="h-6 w-6" />
+                </div>
+                <span className="text-sm font-bold">{action.label}</span>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <Card className="border-none ring-1 ring-border">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Total Orders</p>
-                <h3 className="text-2xl font-bold">{MOCK_ORDERS.length}</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-none ring-1 ring-border">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Pending Review</p>
-                <h3 className="text-2xl font-bold">1</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-none ring-1 ring-border">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Completed</p>
-                <h3 className="text-2xl font-bold">1</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList className="bg-card border p-1 h-auto">
-          <TabsTrigger value="all" className="rounded-md px-6 py-2">All Orders</TabsTrigger>
-          <TabsTrigger value="pending" className="rounded-md px-6 py-2">Pending</TabsTrigger>
-          <TabsTrigger value="completed" className="rounded-md px-6 py-2">Completed</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="space-y-4">
-          {MOCK_ORDERS.map((order) => (
-            <Card key={order.id} className="border-none ring-1 ring-border overflow-hidden group hover:ring-primary/50 transition-all">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center">
-                <div className="p-6 flex-1">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="space-y-1">
-                      <span className="text-xs font-mono font-bold text-muted-foreground uppercase">{order.id}</span>
-                      <h4 className="text-xl font-bold">{order.product.name}</h4>
-                    </div>
-                    <Badge variant={order.status === 'Completed' ? 'default' : 'secondary'} className={order.status === 'Completed' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'}>
-                      {order.status}
-                    </Badge>
+      {/* Recent Transactions */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Recent Transactions
+          </h2>
+          <Link href="/transactions" className="text-primary text-sm font-bold hover:underline">View All</Link>
+        </div>
+        <div className="space-y-3">
+          {[
+            { id: 1, type: 'Data Purchase', amount: -600, date: 'Today, 2:45 PM', status: 'Completed' },
+            { id: 2, type: 'Wallet Funding', amount: 5000, date: 'Yesterday, 10:15 AM', status: 'Completed' },
+            { id: 3, type: 'Airtime', amount: -200, date: 'Oct 20, 11:00 AM', status: 'Completed' },
+          ].map((tx) => (
+            <Card key={tx.id} className="border-none ring-1 ring-border shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                    {tx.amount > 0 ? <PlusCircle className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />}
                   </div>
-                  <div className="flex items-center text-sm text-muted-foreground space-x-6">
-                    <div>
-                      <span className="block font-bold uppercase text-[10px] tracking-widest text-muted-foreground/60">Ordered On</span>
-                      {order.date}
-                    </div>
-                    <div>
-                      <span className="block font-bold uppercase text-[10px] tracking-widest text-muted-foreground/60">Total Amount</span>
-                      <span className="text-foreground font-bold">${order.amount.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="block font-bold uppercase text-[10px] tracking-widest text-muted-foreground/60">Type</span>
-                      <span className="capitalize">{order.product.type}</span>
-                    </div>
+                  <div>
+                    <p className="font-bold text-sm">{tx.type}</p>
+                    <p className="text-xs text-muted-foreground">{tx.date}</p>
                   </div>
                 </div>
-                <div className="border-t md:border-t-0 md:border-l bg-secondary/20 p-6 flex items-center justify-center md:w-48">
-                  {order.status === 'Completed' ? (
-                    <Button variant="outline" className="w-full">
-                      View Details <ExternalLink className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button variant="secondary" className="w-full" disabled>
-                      Processing...
-                    </Button>
-                  )}
+                <div className="text-right">
+                  <p className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-foreground'}`}>
+                    {tx.amount > 0 ? '+' : ''}₦{Math.abs(tx.amount).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{tx.status}</p>
                 </div>
-              </div>
+              </CardContent>
             </Card>
           ))}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

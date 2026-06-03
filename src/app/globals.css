@@ -1,28 +1,29 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 15% 96%;
+    --background: 0 0% 100%;
     --foreground: 220 40% 10%;
     --card: 0 0% 100%;
     --card-foreground: 220 40% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 40% 10%;
-    --primary: 220 70% 40%;
-    --primary-foreground: 210 15% 98%;
-    --secondary: 210 15% 90%;
-    --secondary-foreground: 220 70% 40%;
-    --muted: 210 15% 90%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 142 76% 96%;
+    --secondary-foreground: 142 76% 36%;
+    --muted: 142 20% 96%;
     --muted-foreground: 215 15% 45%;
-    --accent: 192 89% 54%;
-    --accent-foreground: 220 40% 10%;
+    --accent: 142 76% 36%;
+    --accent-foreground: 210 15% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 15% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 220 70% 40%;
+    --border: 142 20% 90%;
+    --input: 142 20% 90%;
+    --ring: 142 76% 36%;
     --radius: 0.75rem;
   }
 
@@ -33,19 +34,19 @@
     --card-foreground: 213 31% 91%;
     --popover: 222 47% 11%;
     --popover-foreground: 213 31% 91%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11.2%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 217 32% 17%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 32% 17%;
     --muted-foreground: 215 20% 65%;
-    --accent: 192 89% 54%;
+    --accent: 142 76% 36%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
     --border: 217 32% 17%;
     --input: 217 32% 17%;
-    --ring: 224 76% 48%;
+    --ring: 142 76% 36%;
   }
 }
 
@@ -59,6 +60,6 @@
 }
 
 .bg-pattern {
-  background-image: radial-gradient(circle at 2px 2px, rgba(31, 78, 173, 0.05) 1px, transparent 0);
+  background-image: radial-gradient(circle at 2px 2px, rgba(22, 163, 74, 0.05) 1px, transparent 0);
   background-size: 24px 24px;
 }

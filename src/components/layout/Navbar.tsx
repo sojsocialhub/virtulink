@@ -1,56 +1,39 @@
+
 "use client";
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Search, User, ShoppingCart, Menu, X, ShieldCheck } from 'lucide-react';
+import { User, Menu, X, Wallet, LayoutDashboard, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <ShieldCheck className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+                <Wallet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-headline text-xl font-bold tracking-tight text-primary">VirtuLink</span>
+              <span className="font-headline text-lg font-black tracking-tighter text-primary">S.O.J VTU</span>
             </Link>
-          </div>
-
-          {/* Desktop Search */}
-          <div className="hidden flex-1 px-8 md:flex">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search virtual numbers, eSIMs..."
-                className="pl-9 bg-secondary/50 border-none focus-visible:ring-1 focus-visible:ring-accent"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
           </div>
 
           {/* Desktop Links */}
-          <div className="hidden items-center space-x-4 md:flex">
-            <Link href="/products" className="text-sm font-medium hover:text-primary transition-colors">Products</Link>
-            <Link href="/faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</Link>
-            <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">Orders</Link>
-            <Link href="/admin">
-              <Button variant="outline" size="sm" className="font-medium">Admin Panel</Button>
+          <div className="hidden items-center space-x-6 md:flex">
+            <Link href="/dashboard" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
+              <LayoutDashboard className="h-4 w-4" /> Dashboard
             </Link>
-            <Button size="icon" variant="ghost" className="relative">
-              <ShoppingCart className="h-5 w-5" />
-            </Button>
+            <Link href="/transactions" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
+              <History className="h-4 w-4" /> Transactions
+            </Link>
+            <div className="h-8 w-px bg-border mx-2" />
             <Link href="/profile">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="rounded-full bg-muted">
                 <User className="h-5 w-5" />
               </Button>
             </Link>
@@ -67,23 +50,17 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden border-t bg-background p-4 space-y-4">
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="md:hidden border-t bg-background p-4 space-y-4 shadow-xl">
           <div className="flex flex-col space-y-3">
-            <Link href="/products" className="text-lg font-medium">Products</Link>
-            <Link href="/faq" className="text-lg font-medium">FAQ</Link>
-            <Link href="/dashboard" className="text-lg font-medium">My Orders</Link>
-            <Link href="/profile" className="text-lg font-medium">Profile</Link>
-            <Link href="/admin" className="text-lg font-medium text-primary">Admin Dashboard</Link>
+            <Link href="/dashboard" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
+              <LayoutDashboard className="h-5 w-5" /> Dashboard
+            </Link>
+            <Link href="/transactions" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
+              <History className="h-5 w-5" /> Transactions
+            </Link>
+            <Link href="/profile" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
+              <User className="h-5 w-5" /> Profile
+            </Link>
           </div>
         </div>
       )}
