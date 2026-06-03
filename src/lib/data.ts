@@ -12,7 +12,7 @@ export const DATA_PLANS: ProductPlan[] = [
 
 export const ADMIN_BANK_DETAILS = {
   accountName: 'SAMUEL AYOMIDE OLUWADARE',
-  accountNumber: '1234567890',
+  accountNumber: '9120964447',
   bankName: 'OPAY',
   swiftCode: 'OPAYNGLA'
 };
