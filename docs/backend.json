@@ -45,16 +45,16 @@
     },
     "Product": {
       "title": "Product Plan",
-      "description": "A purchasable item or plan",
+      "description": "A purchasable item or plan (Data, Number, or Social Log)",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "price": { "type": "number" },
-        "type": { "type": "string" },
-        "description": { "type": "string" },
-        "network": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "features": { "type": "array", "items": { "type": "string" } }
+        "name": { "type": "string", "description": "Display name of the product" },
+        "price": { "type": "number", "description": "Price in Naira" },
+        "type": { "type": "string", "description": "Sub-category or region" },
+        "description": { "type": "string", "description": "Short details about the product" },
+        "network": { "type": "string", "description": "Network provider (MTN, Glo, etc.)" },
+        "imageUrl": { "type": "string", "description": "URL for product image" },
+        "features": { "type": "array", "items": { "type": "string" }, "description": "List of key features" }
       },
       "required": ["name", "price"]
     }
@@ -77,15 +77,15 @@
     },
     "/dataPlans/{planId}": {
       "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Data bundles for purchase"
+      "description": "Data bundles for purchase. Expected fields: name, price, network, description"
     },
     "/virtualNumbers/{numberId}": {
       "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Virtual phone numbers for purchase"
+      "description": "Virtual phone numbers for purchase. Expected fields: name, price, type, description, features"
     },
     "/socialLogs/{logId}": {
       "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Social media accounts/logs for purchase"
+      "description": "Social media accounts for purchase. Expected fields: name, price, description, imageUrl, features"
     }
   }
 }
