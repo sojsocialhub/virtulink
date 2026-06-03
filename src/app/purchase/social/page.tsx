@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, ChevronLeft, CreditCard, Loader2, Info, ShoppingBag, AlertCircle } from 'lucide-react';
+import { MessageSquare, ChevronLeft, CreditCard, Loader2, Info, ShoppingBag, AlertCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useCollection, useDoc } from '@/firebase';
+import { useFirestore, useUser, useCollection, useDoc, useFirebaseApp } from '@/firebase';
 import { collection, query, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ export default function SocialLogsPage() {
   const { toast } = useToast();
   const router = useRouter();
   const db = useFirestore();
+  const app = useFirebaseApp();
   const { user } = useUser();
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -30,16 +31,9 @@ export default function SocialLogsPage() {
     db ? query(collection(db, collectionName)) : null
   );
 
-  // Debugging logs
-  useEffect(() => {
-    console.log(`[Debug] Querying Firestore Collection: "${collectionName}"`);
-    if (logs) {
-      console.log(`[Debug] Documents returned: ${logs.length}`);
-    }
-    if (logsError) {
-      console.error(`[Debug] Firestore Error:`, logsError);
-    }
-  }, [logs, logsError]);
+  // Debugging info
+  const projectId = app?.options?.projectId || 'Not Found';
+  const docIds = logs?.map(l => l.id) || [];
 
   const handlePurchase = async (log: any) => {
     if (!db || !user || !userDocRef) return;
@@ -55,12 +49,10 @@ export default function SocialLogsPage() {
 
     setIsProcessing(true);
     try {
-      // 1. Deduct from wallet
       await updateDoc(userDocRef, {
         walletBalance: increment(-log.price)
       });
 
-      // 2. Log Transaction
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'social_log',
@@ -92,21 +84,57 @@ export default function SocialLogsPage() {
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <header className="mb-10">
+      <header className="mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <MessageSquare className="h-8 w-8 text-primary" /> Social Media Logs
         </h1>
         <p className="text-muted-foreground">High-trust, aged accounts for your business needs.</p>
       </header>
 
+      {/* Connection Diagnostics Panel */}
+      <Card className="mb-8 border-none ring-1 ring-blue-200 bg-blue-50/30 overflow-hidden">
+        <CardHeader className="py-3 bg-blue-100/50">
+          <CardTitle className="text-xs flex items-center gap-2 text-blue-700 uppercase tracking-widest font-black">
+            <Terminal className="h-3 w-3" /> System Diagnostics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-4 space-y-2 text-[11px] font-mono">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Firebase Project ID:</span>
+            <span className="font-bold text-blue-600">{projectId}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Firestore Collection:</span>
+            <span className="font-bold">"{collectionName}"</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Data Source:</span>
+            <span className="text-green-600 font-bold uppercase">Live Firestore DB</span>
+          </div>
+          <div className="flex justify-between border-t pt-2">
+            <span className="text-muted-foreground">Documents Found:</span>
+            <span className="font-bold">{logs?.length || 0}</span>
+          </div>
+          {docIds.length > 0 && (
+            <div className="pt-1">
+              <span className="text-muted-foreground">Document IDs:</span>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {docIds.map(id => (
+                  <span key={id} className="px-1 bg-white border rounded text-[9px]">{id}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Firestore Error Display */}
       {logsError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Firestore Error</AlertTitle>
+          <AlertTitle>Firestore Connection Error</AlertTitle>
           <AlertDescription>
-            Failed to load products from collection "{collectionName}". 
-            Error: {logsError.message}
+            {logsError.message}
           </AlertDescription>
         </Alert>
       )}
@@ -125,6 +153,7 @@ export default function SocialLogsPage() {
                   alt={log.name} 
                   fill 
                   className="object-cover"
+                  data-ai-hint="social media"
                 />
                 <div className="absolute top-2 right-2">
                   <Badge className="bg-primary/90 text-white font-bold">₦{log.price.toLocaleString()}</Badge>
@@ -159,11 +188,14 @@ export default function SocialLogsPage() {
           <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-bold mb-2">No Accounts Available</h3>
           <p className="text-muted-foreground">
-            We checked the <code className="bg-muted px-1 rounded text-primary font-mono">{collectionName}</code> collection but found 0 documents.
+            We successfully connected to project <code className="text-blue-600">{projectId}</code> but found 0 documents in <code className="text-primary">{collectionName}</code>.
           </p>
-          <p className="text-xs text-muted-foreground mt-4 italic">
-            Debug Info: Collection name is exactly "{collectionName}".
-          </p>
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg max-w-sm mx-auto text-left text-[11px] space-y-2">
+            <p className="font-bold text-muted-foreground uppercase">Please check:</p>
+            <p>• Is the collection name exactly <code className="font-bold">socialLogs</code> (case-sensitive)?</p>
+            <p>• Is the document inside a collection, not a sub-collection?</p>
+            <p>• Did you add fields like <code className="font-bold">name</code> and <code className="font-bold">price</code>?</p>
+          </div>
         </div>
       )}
     </div>
