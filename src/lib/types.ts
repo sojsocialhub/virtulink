@@ -2,6 +2,7 @@
 export type TransactionType = 'airtime' | 'data' | 'funding' | 'social_log' | 'number';
 export type TransactionStatus = 'Pending' | 'Completed' | 'Failed';
 export type FundRequestStatus = 'pending' | 'approved' | 'rejected';
+export type ProductType = 'virtual number' | 'eSIM' | 'VPN subscription' | 'social_log' | 'data' | 'airtime';
 
 export interface UserProfile {
   id: string;
@@ -39,4 +40,14 @@ export interface ProductPlan {
   price: number;
   network: string;
   type: 'airtime' | 'data';
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  type: ProductType;
+  price: number;
+  description: string;
+  imageUrl: string;
+  features: string[];
 }

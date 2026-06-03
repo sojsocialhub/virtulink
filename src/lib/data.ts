@@ -1,5 +1,5 @@
 
-import { ProductPlan } from './types';
+import { ProductPlan, Product } from './types';
 
 export const NETWORKS = ['MTN', 'Airtel', 'Glo', '9mobile'];
 
@@ -14,4 +14,44 @@ export const ADMIN_BANK_DETAILS = {
   accountName: 'SAMUEL AYOMIDE OLUWADARE',
   accountNumber: '1234567890',
   bankName: 'OPAY',
+  swiftCode: 'OPAYNGLA'
 };
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'vn-us-1',
+    name: 'US Premium Virtual Number',
+    type: 'virtual number',
+    price: 15.00,
+    description: 'High-quality US virtual number for WhatsApp, Telegram, and Google verification.',
+    imageUrl: 'https://picsum.photos/seed/virtulink2/600/400',
+    features: ['OTP Supported', 'Instant Activation', '99.9% Success Rate']
+  },
+  {
+    id: 'sl-fb-1',
+    name: 'Facebook Social Log (Aged)',
+    type: 'social_log',
+    price: 5.50,
+    description: 'Aged Facebook account with high trust score for marketing and business use.',
+    imageUrl: 'https://picsum.photos/seed/virtulink1/600/400',
+    features: ['High Trust Score', 'Profile Photo Included', '2FA Enabled']
+  },
+  {
+    id: 'esim-eu-1',
+    name: 'Europe Travel eSIM (5GB)',
+    type: 'eSIM',
+    price: 25.00,
+    description: 'Seamless connectivity across 35+ European countries with high-speed 5G data.',
+    imageUrl: 'https://picsum.photos/seed/virtulink3/600/400',
+    features: ['High Speed 5G', 'No Roaming Fees', 'Instant QR Setup']
+  },
+  {
+    id: 'vpn-sg-1',
+    name: 'SafeGuard Pro VPN (1 Month)',
+    type: 'VPN subscription',
+    price: 10.00,
+    description: 'Secure your digital life with ultra-fast servers and military-grade encryption.',
+    imageUrl: 'https://picsum.photos/seed/virtulink4/600/400',
+    features: ['No Logs Policy', 'Multi-device Support', '24/7 Support']
+  }
+];

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { use, useState } from 'react';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Copy, CheckCircle2, Upload, CreditCard, ChevronLeft, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { INITIAL_PRODUCTS, BANK_DETAILS } from '@/lib/data';
+import { INITIAL_PRODUCTS, ADMIN_BANK_DETAILS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -89,24 +90,24 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground font-bold uppercase">Bank Name</p>
-                    <p className="font-medium">{BANK_DETAILS.bankName}</p>
+                    <p className="font-medium">{ADMIN_BANK_DETAILS.bankName}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground font-bold uppercase">Account Name</p>
-                    <p className="font-medium">{BANK_DETAILS.accountName}</p>
+                    <p className="font-medium">{ADMIN_BANK_DETAILS.accountName}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground font-bold uppercase">Account Number</p>
                     <div className="flex items-center justify-between">
-                      <p className="font-mono font-bold text-lg">{BANK_DETAILS.accountNumber}</p>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(BANK_DETAILS.accountNumber, "Account")}>
+                      <p className="font-mono font-bold text-lg">{ADMIN_BANK_DETAILS.accountNumber}</p>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(ADMIN_BANK_DETAILS.accountNumber, "Account")}>
                         {copiedField === "Account" ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground font-bold uppercase">SWIFT/BIC</p>
-                    <p className="font-medium">{BANK_DETAILS.swiftCode}</p>
+                    <p className="font-medium">{ADMIN_BANK_DETAILS.swiftCode}</p>
                   </div>
                 </div>
               </div>
@@ -201,7 +202,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
               </div>
             </CardContent>
             <CardFooter className="flex flex-col text-xs text-muted-foreground text-center">
-              <p>By submitting this order, you agree to VirtuLink's Terms of Service and Privacy Policy.</p>
+              <p>By submitting this order, you agree to S.O.J VTU Hub's Terms of Service and Privacy Policy.</p>
             </CardFooter>
           </Card>
         </div>
