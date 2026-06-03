@@ -2,8 +2,8 @@
 "use client";
 
 import { useState } from 'react';
-import { LayoutDashboard, ShoppingBag, Users, Settings, Plus, Check, X, Eye, FileText, Sparkles, Database, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LayoutDashboard, ShoppingBag, Users, Settings, Plus, Check, X, Database, Loader2 } from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,23 +13,23 @@ import { useFirestore } from '@/firebase';
 import { collection, addDoc, getDocs, query, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock orders for admin
+// Mock orders for admin UI
 const MOCK_ADMIN_ORDERS = [
-  { id: "ORD-101", customer: "john@example.com", product: "MTN 2GB Data", amount: 600, status: "Pending", proof: "screenshot1.jpg", date: "2024-05-20" },
-  { id: "ORD-102", customer: "alice@test.com", product: "US Virtual Number", amount: 1500, status: "Paid", proof: "receipt_pdf.pdf", date: "2024-05-19" },
+  { id: "ORD-101", customer: "john@example.com", product: "MTN 2GB Data", amount: 600, status: "Pending", date: "2024-05-20" },
+  { id: "ORD-102", customer: "alice@test.com", product: "US Virtual Number", amount: 1500, status: "Completed", date: "2024-05-19" },
 ];
 
 const SAMPLE_PLANS = [
-  { name: "MTN 1GB SME", network: "MTN", price: 300, description: "30 Days Validity - SME" },
-  { name: "MTN 2GB SME", network: "MTN", price: 600, description: "30 Days Validity - SME" },
-  { name: "MTN 5GB SME", network: "MTN", price: 1500, description: "30 Days Validity - SME" },
-  { name: "Airtel 1.5GB", network: "Airtel", price: 500, description: "30 Days Validity - Gifting" },
-  { name: "Airtel 4.5GB", network: "Airtel", price: 1200, description: "30 Days Validity - Gifting" },
-  { name: "Glo 1.35GB", network: "Glo", price: 480, description: "30 Days Validity" },
-  { name: "Glo 2.9GB", network: "Glo", price: 950, description: "30 Days Validity" },
-  { name: "Glo 5.8GB", network: "Glo", price: 1900, description: "30 Days Validity" },
-  { name: "9mobile 1.5GB", network: "9mobile", price: 500, description: "30 Days Validity" },
-  { name: "9mobile 3GB", network: "9mobile", price: 1000, description: "30 Days Validity" },
+  { name: "MTN 1GB SME", network: "MTN", price: 300, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
+  { name: "MTN 2GB SME", network: "MTN", price: 600, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
+  { name: "MTN 5GB SME", network: "MTN", price: 1500, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
+  { name: "Airtel 1.5GB", network: "Airtel", price: 500, description: "30 Days Validity - Gifting", type: "data", features: ["30 Days", "Gifting"] },
+  { name: "Airtel 4.5GB", network: "Airtel", price: 1200, description: "30 Days Validity - Gifting", type: "data", features: ["30 Days", "Gifting"] },
+  { name: "Glo 1.35GB", network: "Glo", price: 480, description: "30 Days Validity", type: "data", features: ["30 Days"] },
+  { name: "Glo 2.9GB", network: "Glo", price: 950, description: "30 Days Validity", type: "data", features: ["30 Days"] },
+  { name: "Glo 5.8GB", network: "Glo", price: 1900, description: "30 Days Validity", type: "data", features: ["30 Days"] },
+  { name: "9mobile 1.5GB", network: "9mobile", price: 500, description: "30 Days Validity", type: "data", features: ["30 Days"] },
+  { name: "9mobile 3GB", network: "9mobile", price: 1000, description: "30 Days Validity", type: "data", features: ["30 Days"] },
 ];
 
 export default function AdminDashboard() {
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     if (!db) return;
     setIsSeeding(true);
     try {
-      // Check if data already exists to avoid duplicates (basic check)
+      // Check if data already exists to avoid duplicates
       const q = query(collection(db, 'dataPlans'), limit(1));
       const snap = await getDocs(q);
       
@@ -67,12 +67,12 @@ export default function AdminDashboard() {
         title: "Database Seeded!",
         description: "10 sample data plans have been added successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
         title: "Seeding failed",
-        description: "Could not add sample data to Firestore.",
+        description: error.message || "Could not add sample data to Firestore.",
       });
     } finally {
       setIsSeeding(false);
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r bg-card hidden lg:block">
-        <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4">S.O.J VTU Admin</div>
+        <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4">Admin Hub</div>
         <nav className="px-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start text-primary">
             <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
@@ -102,17 +102,17 @@ export default function AdminDashboard() {
       </aside>
 
       <main className="flex-1 p-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold font-headline">Admin Control Center</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Admin Control Center</h1>
             <p className="text-muted-foreground">Manage orders, funding requests, and platform data.</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3">
             <Button 
               variant="outline" 
               onClick={handleSeedData} 
               disabled={isSeeding}
-              className="border-primary text-primary hover:bg-primary/5"
+              className="border-primary text-primary hover:bg-primary/5 font-bold"
             >
               {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
               Seed Sample Plans
@@ -132,10 +132,10 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            <Card className="border-none ring-1 ring-border shadow-sm">
+            <Card className="border-none ring-1 ring-border shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-secondary/20">
+                  <TableRow className="bg-muted/50">
                     <TableHead className="font-bold">ID</TableHead>
                     <TableHead className="font-bold">Customer</TableHead>
                     <TableHead className="font-bold">Product</TableHead>
@@ -163,10 +163,10 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" className="text-blue-600" onClick={() => updateStatus(order.id, 'Completed')}>
-                            <Check className="h-4 w-4 mr-1" /> Approve
+                          <Button size="sm" variant="outline" className="text-blue-600 h-8" onClick={() => updateStatus(order.id, 'Completed')}>
+                            <Check className="h-3.5 w-3.5 mr-1" /> Approve
                           </Button>
-                          <Button size="icon" variant="ghost" className="text-destructive">
+                          <Button size="icon" variant="ghost" className="text-destructive h-8 w-8">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>

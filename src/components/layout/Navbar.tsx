@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { User, Menu, X, Wallet, LayoutDashboard, History } from 'lucide-react';
+import { User, Menu, X, Wallet, LayoutDashboard, History, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
@@ -31,6 +31,9 @@ export default function Navbar() {
             <Link href="/transactions" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
               <History className="h-4 w-4" /> Transactions
             </Link>
+            <Link href="/admin" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
+              <ShieldAlert className="h-4 w-4" /> Admin
+            </Link>
             <div className="h-8 w-px bg-border mx-2" />
             <Link href="/profile">
               <Button variant="ghost" size="icon" className="rounded-full bg-muted">
@@ -57,6 +60,9 @@ export default function Navbar() {
             </Link>
             <Link href="/transactions" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
               <History className="h-5 w-5" /> Transactions
+            </Link>
+            <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
+              <ShieldAlert className="h-5 w-5" /> Admin
             </Link>
             <Link href="/profile" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
               <User className="h-5 w-5" /> Profile
