@@ -2,13 +2,14 @@
 
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, CheckCircle2, Upload, CreditCard, ChevronLeft } from 'lucide-react';
+import { Copy, CheckCircle2, Upload, CreditCard, ChevronLeft, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { INITIAL_PRODUCTS, BANK_DETAILS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -208,5 +209,3 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
     </div>
   );
 }
-
-import { Shield } from 'lucide-react';
