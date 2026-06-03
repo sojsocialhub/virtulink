@@ -3,13 +3,15 @@ export type TransactionType = 'airtime' | 'data' | 'funding' | 'social_log' | 'n
 export type TransactionStatus = 'Pending' | 'Completed' | 'Failed';
 export type FundRequestStatus = 'pending' | 'approved' | 'rejected';
 export type ProductType = 'virtual number' | 'eSIM' | 'VPN subscription' | 'social_log' | 'data' | 'airtime';
+export type UserRole = 'user' | 'admin';
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   walletBalance: number;
-  isAdmin: boolean;
+  role: UserRole;
+  createdAt: string;
 }
 
 export interface Transaction {
@@ -34,14 +36,6 @@ export interface FundRequest {
   date: string;
 }
 
-export interface ProductPlan {
-  id: string;
-  name: string;
-  price: number;
-  network: string;
-  type: 'airtime' | 'data';
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -50,4 +44,5 @@ export interface Product {
   description: string;
   imageUrl: string;
   features: string[];
+  network?: string;
 }

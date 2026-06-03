@@ -9,9 +9,10 @@
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "walletBalance": { "type": "number", "description": "Current balance in Naira" },
-        "isAdmin": { "type": "boolean" }
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "email", "walletBalance"]
+      "required": ["name", "email", "walletBalance", "role"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -48,13 +49,13 @@
       "description": "A purchasable item or plan (Data, Number, or Social Log)",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "description": "Display name of the product" },
-        "price": { "type": "number", "description": "Price in Naira" },
-        "type": { "type": "string", "description": "Sub-category or region" },
-        "description": { "type": "string", "description": "Short details about the product" },
-        "network": { "type": "string", "description": "Network provider (MTN, Glo, etc.)" },
-        "imageUrl": { "type": "string", "description": "URL for product image" },
-        "features": { "type": "array", "items": { "type": "string" }, "description": "List of key features" }
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "network": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["name", "price"]
     }
@@ -65,27 +66,18 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/User" },
-      "description": "User profiles and balances"
+      "description": "User profiles and roles"
     },
     "/transactions/{transactionId}": {
       "schema": { "$ref": "#/backend/entities/Transaction" },
-      "description": "Global transaction logs"
+      "description": "Financial transaction logs"
     },
     "/fundRequests/{requestId}": {
       "schema": { "$ref": "#/backend/entities/FundRequest" },
-      "description": "Funding requests for admin review"
+      "description": "Wallet funding approval queue"
     },
-    "/dataPlans/{planId}": {
-      "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Data bundles for purchase. Expected fields: name, price, network, description"
-    },
-    "/virtualNumbers/{numberId}": {
-      "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Virtual phone numbers for purchase. Expected fields: name, price, type, description, features"
-    },
-    "/socialLogs/{logId}": {
-      "schema": { "$ref": "#/backend/entities/Product" },
-      "description": "Social media accounts for purchase. Expected fields: name, price, description, imageUrl, features"
-    }
+    "/dataPlans/{planId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Data bundles" },
+    "/virtualNumbers/{numberId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Virtual numbers" },
+    "/socialLogs/{logId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Aged social accounts" }
   }
 }
