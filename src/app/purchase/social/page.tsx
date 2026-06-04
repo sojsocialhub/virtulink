@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, ChevronLeft, ShoppingBag, Loader2, Info, Terminal, AlertCircle } from 'lucide-react';
+import { MessageSquare, ChevronLeft, ShoppingBag, Loader2, Info, Terminal, AlertCircle, FileJson } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ export default function SocialLogsPage() {
   const { user } = useUser();
   const [isProcessing, setIsProcessing] = useState(false);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [deepTrace, setDeepTrace] = useState<any>(null);
 
   // Fetch real user data for wallet balance
   const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
@@ -33,7 +34,7 @@ export default function SocialLogsPage() {
   );
 
   /**
-   * Helper to check if a string is a valid image URL for Next.js Image component
+   * Helper to validate URLs for Next.js Image component
    */
   const isValidImageUrl = (url: any): boolean => {
     if (typeof url !== 'string') return false;
@@ -41,21 +42,22 @@ export default function SocialLogsPage() {
   };
 
   /**
-   * Helper to get a field value regardless of casing
+   * Case-insensitive, whitespace-resilient field extractor
    */
-  const getCaseInsensitiveValue = (item: any, possibleNames: string[]): any => {
+  const getFlexibleValue = (item: any, possibleNames: string[]): any => {
+    if (!item || typeof item !== 'object') return undefined;
     const keys = Object.keys(item);
-    const foundKey = keys.find(k => 
-      possibleNames.map(p => p.toLowerCase()).includes(k.toLowerCase())
-    );
+    const normalizedTarget = possibleNames.map(n => n.toLowerCase());
+    
+    const foundKey = keys.find(k => normalizedTarget.includes(k.toLowerCase().trim()));
     return foundKey ? item[foundKey] : undefined;
   };
 
   /**
-   * Robust price parser that handles various field names and data types.
+   * Resilient price parser
    */
   const getPriceData = (log: any) => {
-    const rawPrice = getCaseInsensitiveValue(log, ['price', 'amount', 'cost']);
+    const rawPrice = getFlexibleValue(log, ['price', 'amount', 'cost', 'value']);
     const type = typeof rawPrice;
     let parsed = 0;
 
@@ -64,11 +66,17 @@ export default function SocialLogsPage() {
         parsed = rawPrice;
       } else if (type === 'string') {
         parsed = parseFloat(rawPrice.replace(/[^0-9.]/g, '')) || 0;
-      } else if (type === 'object' && typeof (rawPrice as any).toNumber === 'function') {
-        parsed = (rawPrice as any).toNumber();
-      } else if (type === 'object' && rawPrice.toString) {
-        // Fallback for some Firestore object representations
-        parsed = parseFloat(rawPrice.toString()) || 0;
+      } else if (type === 'object') {
+        // Handle Firestore Long objects or Timestamps (if misused)
+        if (typeof (rawPrice as any).toNumber === 'function') {
+          parsed = (rawPrice as any).toNumber();
+        } else if (typeof (rawPrice as any).toMillis === 'function') {
+          parsed = (rawPrice as any).toMillis();
+        } else if (rawPrice.seconds !== undefined) {
+          parsed = rawPrice.seconds;
+        } else {
+          parsed = parseFloat(String(rawPrice)) || 0;
+        }
       }
     }
 
@@ -76,21 +84,24 @@ export default function SocialLogsPage() {
   };
 
   const handlePurchase = async (log: any) => {
+    // 1. Trace the entry point
     const { raw, type, parsed } = getPriceData(log);
+    const logKeys = Object.keys(log || {});
     
     const trace = [
-      `BUY CLICK: Document ID ${log.id}`,
-      `Raw Price Field: ${JSON.stringify(raw)}`,
-      `JS Type: ${type}`,
-      `Parsed Value: ${parsed}`,
-      `Validation Check: (parsed <= 0) is ${parsed <= 0}`
+      `[1] CHECKOUT ENTRY: ID ${log.id}`,
+      `[2] DETECTED KEYS: ${logKeys.join(', ')}`,
+      `[3] PRICE RAW: ${JSON.stringify(raw)}`,
+      `[4] PRICE TYPE: ${type}`,
+      `[5] PRICE PARSED: ${parsed}`
     ];
+    
     setDebugLog(trace);
-    console.log("SOCIAL_LOG_TRACE:", trace);
+    setDeepTrace({ stage: 'checkout_receive', keys: logKeys, fullObject: { ...log } });
+    console.log("PURCHASE_TRACE:", { log, parsed, type, raw });
 
     if (!db || !user || !userDocRef) return;
 
-    // The specific debug message requested
     if (parsed <= 0) {
       toast({
         variant: "destructive",
@@ -104,7 +115,7 @@ export default function SocialLogsPage() {
       toast({ 
         variant: "destructive", 
         title: "Insufficient Balance", 
-        description: `Cost: ₦${parsed.toLocaleString()}, Balance: ₦${walletBalance.toLocaleString()}` 
+        description: `Price: ₦${parsed.toLocaleString()}, Balance: ₦${walletBalance.toLocaleString()}` 
       });
       return;
     }
@@ -118,7 +129,7 @@ export default function SocialLogsPage() {
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'social_log',
-        service: getCaseInsensitiveValue(log, ['name', 'title']) || 'Social Account',
+        service: getFlexibleValue(log, ['name', 'title']) || 'Social Account',
         amount: parsed,
         status: 'Completed',
         date: new Date().toISOString()
@@ -126,7 +137,7 @@ export default function SocialLogsPage() {
 
       toast({
         title: "Purchase Successful!",
-        description: "Account details are being processed."
+        description: "Your account details are being generated."
       });
       router.push('/dashboard');
     } catch (e: any) {
@@ -148,41 +159,56 @@ export default function SocialLogsPage() {
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <MessageSquare className="h-8 w-8 text-primary" /> Social Media Logs
-        </h1>
-        <p className="text-muted-foreground">High-trust, aged accounts for business needs.</p>
+      <header className="mb-6 flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <MessageSquare className="h-8 w-8 text-primary" /> Social Logs
+          </h1>
+          <p className="text-muted-foreground">Premium aged accounts for marketing.</p>
+        </div>
+        <div className="bg-primary/5 px-4 py-2 rounded-lg border border-primary/10">
+          <p className="text-[10px] uppercase font-black text-primary tracking-widest">Balance</p>
+          <p className="text-lg font-bold">₦{walletBalance.toLocaleString()}</p>
+        </div>
       </header>
 
-      {/* Deep Diagnostics Panel */}
-      <Card className="mb-8 border-none ring-1 ring-blue-200 bg-blue-50/30 overflow-hidden">
-        <CardHeader className="py-3 bg-blue-100/50">
-          <CardTitle className="text-xs flex items-center gap-2 text-blue-700 uppercase tracking-widest font-black">
+      {/* Advanced Diagnostics Panel */}
+      <Card className="mb-8 border-none ring-1 ring-primary/20 bg-primary/[0.02] overflow-hidden">
+        <CardHeader className="py-2 bg-primary/10 border-b border-primary/10">
+          <CardTitle className="text-[10px] flex items-center gap-2 text-primary uppercase tracking-widest font-black">
             <Terminal className="h-3 w-3" /> System Trace Diagnostics
           </CardTitle>
         </CardHeader>
-        <CardContent className="py-4 space-y-3 text-[11px] font-mono">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-muted-foreground">Environment</p>
-              <p>Project ID: <span className="font-bold text-blue-600">{projectId}</span></p>
-              <p>Wallet: <span className="font-bold">₦{walletBalance}</span></p>
+        <CardContent className="py-4 space-y-4 text-[11px] font-mono">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <p className="text-muted-foreground uppercase text-[9px] font-bold">Environment</p>
+              <p>Project: <span className="font-bold text-primary">{projectId}</span></p>
+              <p>Collection: <span className="font-bold">{collectionName}</span></p>
             </div>
-            <div>
-              <p className="text-muted-foreground">Firestore Collection: <span className="text-foreground">"{collectionName}"</span></p>
-              <p>Docs Loaded: <span className="font-bold">{logs?.length || 0}</span></p>
+            <div className="space-y-1">
+              <p className="text-muted-foreground uppercase text-[9px] font-bold">Inventory</p>
+              <p>Docs Found: <span className="font-bold">{logs?.length || 0}</span></p>
+              <p>Status: <span className="text-green-600 font-bold">{loadingLogs ? 'Loading...' : 'Ready'}</span></p>
             </div>
+            {debugLog.length > 0 && (
+              <div className="space-y-1 border-l pl-4 border-primary/20">
+                <p className="text-primary font-bold uppercase text-[9px]">Last Action Trace</p>
+                <ul className="space-y-0.5 text-[10px]">
+                  {debugLog.map((line, i) => <li key={i}>{line}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
           
-          {debugLog.length > 0 && (
-            <div className="pt-3 border-t border-blue-100">
-              <p className="text-blue-700 font-bold mb-1 underline">Last Action Price Trace:</p>
-              <ul className="space-y-1 text-blue-900">
-                {debugLog.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
+          {deepTrace && (
+            <div className="pt-3 border-t border-primary/10">
+              <p className="text-primary font-bold mb-2 flex items-center gap-2">
+                <FileJson className="h-3 w-3" /> Raw Object Snapshot ({deepTrace.stage})
+              </p>
+              <pre className="p-2 bg-black/5 rounded text-[10px] overflow-auto max-h-32">
+                {JSON.stringify(deepTrace.fullObject, null, 2)}
+              </pre>
             </div>
           )}
         </CardContent>
@@ -191,7 +217,7 @@ export default function SocialLogsPage() {
       {logsError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Firebase Error</AlertTitle>
+          <AlertTitle>Firestore Error</AlertTitle>
           <AlertDescription>{logsError.message}</AlertDescription>
         </Alert>
       )}
@@ -204,11 +230,9 @@ export default function SocialLogsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {logs.map((log: any) => {
             const priceData = getPriceData(log);
-            const name = getCaseInsensitiveValue(log, ['name', 'title']) || 'Untitled Account';
-            const desc = getCaseInsensitiveValue(log, ['description', 'desc', 'summary']) || 'No info.';
-            const rawImage = getCaseInsensitiveValue(log, ['imageUrl', 'image', 'photo']);
-            
-            // Fix: Check if rawImage is a valid URL, otherwise use fallback to prevent Image component crash
+            const name = getFlexibleValue(log, ['name', 'title']) || 'Untitled Account';
+            const desc = getFlexibleValue(log, ['description', 'desc', 'summary']) || 'No description available.';
+            const rawImage = getFlexibleValue(log, ['imageUrl', 'image', 'photo']);
             const image = isValidImageUrl(rawImage) ? rawImage : `https://picsum.photos/seed/${log.id}/600/400`;
 
             return (
@@ -219,7 +243,7 @@ export default function SocialLogsPage() {
                     alt={name} 
                     fill 
                     className="object-cover"
-                    data-ai-hint="social account"
+                    data-ai-hint="social media account"
                   />
                   <div className="absolute top-2 right-2">
                     <Badge className="bg-primary text-white font-bold text-sm px-3 py-1 shadow-md">
@@ -229,11 +253,14 @@ export default function SocialLogsPage() {
                 </div>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg font-bold truncate">{name}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2">{desc}</CardDescription>
+                  <CardDescription className="text-xs line-clamp-2 min-h-[32px]">{desc}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2 mt-auto">
                   <Button 
-                    onClick={() => handlePurchase(log)}
+                    onClick={() => {
+                      console.log("CLICK_EMIT:", log);
+                      handlePurchase(log);
+                    }}
                     className="w-full font-black h-11"
                     disabled={isProcessing}
                   >
@@ -246,9 +273,12 @@ export default function SocialLogsPage() {
           })}
         </div>
       ) : (
-        <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed border-muted-foreground/20">
+        <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed border-muted-foreground/10">
           <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-20" />
-          <p className="text-muted-foreground">No accounts found in {collectionName}.</p>
+          <h3 className="text-lg font-bold">No Accounts Available</h3>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+            We checked the <span className="font-bold">{collectionName}</span> collection but found 0 documents.
+          </p>
         </div>
       )}
     </div>

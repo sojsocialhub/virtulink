@@ -1,15 +1,9 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Helper to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
-    }
-
-    // Helper to check if user is the owner of the document
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
     }
 
     // Helper to check if user is an admin
@@ -21,38 +15,25 @@ service cloud.firestore {
 
     // User profiles
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId) || isAdmin();
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
     // Transactions
     match /transactions/{transactionId} {
-      // Allow read (get and list) if the user owns the transaction OR is an admin
-      allow read: if isAuthenticated() && (
-        (resource.data.userId == request.auth.uid) || 
-        isAdmin()
-      );
-      
-      // Users can only create transactions for themselves
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      
-      // Only admins can modify or delete transaction logs
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
     // Funding Requests
     match /fundRequests/{requestId} {
-      allow read: if isAuthenticated() && (
-        (resource.data.userId == request.auth.uid) || 
-        isAdmin()
-      );
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Product collections (Data plans, Virtual Numbers, Social Logs)
+    // Product collections
     match /dataPlans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
