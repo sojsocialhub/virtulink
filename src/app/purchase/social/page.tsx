@@ -31,21 +31,30 @@ export default function SocialLogsPage() {
     db ? query(collection(db, collectionName)) : null
   );
 
-  // Helper to safely parse price from Firestore (handles numbers or strings with symbols)
+  /**
+   * Robust price parser that handles various field names and data types.
+   * Checks for: price, Price, amount, Amount
+   */
   const getPrice = (log: any): number => {
-    const rawPrice = log.price ?? log.Price ?? 0;
+    // Check for common field name variations
+    const rawPrice = log.price !== undefined ? log.price : 
+                    log.Price !== undefined ? log.Price : 
+                    log.amount !== undefined ? log.amount : 
+                    log.Amount !== undefined ? log.Amount : undefined;
+
+    if (rawPrice === undefined || rawPrice === null) return 0;
+    
+    // Handle numeric types (Firestore Number or Int64)
     if (typeof rawPrice === 'number') return rawPrice;
+    
+    // Handle string types (e.g., "5000" or "₦5,000")
     if (typeof rawPrice === 'string') {
-      // Remove any non-numeric characters except for the decimal point
       const cleaned = rawPrice.replace(/[^0-9.]/g, '');
       return parseFloat(cleaned) || 0;
     }
+    
     return 0;
   };
-
-  // Debugging info
-  const projectId = app?.options?.projectId || 'Not Found';
-  const docIds = logs?.map(l => l.id) || [];
 
   const handlePurchase = async (log: any) => {
     if (!db || !user || !userDocRef) return;
@@ -56,7 +65,7 @@ export default function SocialLogsPage() {
       toast({
         variant: "destructive",
         title: "Invalid Product",
-        description: "This product does not have a valid price set."
+        description: "This product does not have a valid price set. Please contact admin."
       });
       return;
     }
@@ -101,6 +110,10 @@ export default function SocialLogsPage() {
     }
   };
 
+  // Diagnostic Data
+  const projectId = app?.options?.projectId || 'Not Found';
+  const firstDocKeys = logs && logs.length > 0 ? Object.keys(logs[0]).filter(k => k !== 'id') : [];
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Link href="/dashboard" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-6">
@@ -114,7 +127,7 @@ export default function SocialLogsPage() {
         <p className="text-muted-foreground">High-trust, aged accounts for your business needs.</p>
       </header>
 
-      {/* Connection Diagnostics Panel - Can be removed once verified */}
+      {/* Connection Diagnostics Panel */}
       <Card className="mb-8 border-none ring-1 ring-blue-200 bg-blue-50/30 overflow-hidden">
         <CardHeader className="py-3 bg-blue-100/50">
           <CardTitle className="text-xs flex items-center gap-2 text-blue-700 uppercase tracking-widest font-black">
@@ -136,11 +149,11 @@ export default function SocialLogsPage() {
           </div>
           {logs && logs.length > 0 && (
             <div className="pt-2">
-              <p className="text-muted-foreground mb-1">Raw Prices Debug:</p>
+              <p className="text-muted-foreground mb-1">Detected Field Keys (First Doc):</p>
               <div className="flex flex-wrap gap-2">
-                {logs.slice(0, 3).map(l => (
-                  <span key={l.id} className="px-1 bg-white border rounded">
-                    ID:{l.id.slice(0,4)} | Val:{JSON.stringify(l.price ?? l.Price)}
+                {firstDocKeys.map(key => (
+                  <span key={key} className="px-1.5 py-0.5 bg-white border rounded text-blue-500 font-bold">
+                    {key}
                   </span>
                 ))}
               </div>
@@ -216,7 +229,7 @@ export default function SocialLogsPage() {
           <h3 className="text-xl font-bold mb-2">No Accounts Available</h3>
           <p className="text-muted-foreground max-w-md mx-auto">
             We checked the <code className="text-primary">{collectionName}</code> collection but found 0 documents. 
-            Please ensure you have added documents with a <code className="font-bold">name</code> and <code className="font-bold">price</code> field.
+            Please ensure you have added documents with a <code className="font-bold">name</code> and a price field.
           </p>
         </div>
       )}
