@@ -33,6 +33,14 @@ export default function SocialLogsPage() {
   );
 
   /**
+   * Helper to check if a string is a valid image URL for Next.js Image component
+   */
+  const isValidImageUrl = (url: any): boolean => {
+    if (typeof url !== 'string') return false;
+    return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+  };
+
+  /**
    * Helper to get a field value regardless of casing
    */
   const getCaseInsensitiveValue = (item: any, possibleNames: string[]): any => {
@@ -198,13 +206,16 @@ export default function SocialLogsPage() {
             const priceData = getPriceData(log);
             const name = getCaseInsensitiveValue(log, ['name', 'title']) || 'Untitled Account';
             const desc = getCaseInsensitiveValue(log, ['description', 'desc', 'summary']) || 'No info.';
-            const image = getCaseInsensitiveValue(log, ['imageUrl', 'image', 'photo']);
+            const rawImage = getCaseInsensitiveValue(log, ['imageUrl', 'image', 'photo']);
+            
+            // Fix: Check if rawImage is a valid URL, otherwise use fallback to prevent Image component crash
+            const image = isValidImageUrl(rawImage) ? rawImage : `https://picsum.photos/seed/${log.id}/600/400`;
 
             return (
               <Card key={log.id} className="overflow-hidden border-none ring-1 ring-border group hover:shadow-lg transition-all flex flex-col h-full bg-white">
                 <div className="relative aspect-video bg-muted">
                   <Image 
-                    src={image || `https://picsum.photos/seed/${log.id}/600/400`} 
+                    src={image} 
                     alt={name} 
                     fill 
                     className="object-cover"
