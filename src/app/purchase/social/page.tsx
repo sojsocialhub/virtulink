@@ -58,7 +58,7 @@ export default function SocialLogsPage() {
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'social_log',
-        service: log.name,
+        service: log.name || 'Social Account',
         amount: price,
         status: 'Completed',
         date: new Date().toISOString()
@@ -66,7 +66,7 @@ export default function SocialLogsPage() {
 
       toast({
         title: "Purchase Successful!",
-        description: `Your ${log.name} details will be sent to your dashboard shortly.`
+        description: `Your ${log.name || 'Social Account'} details will be sent to your dashboard shortly.`
       });
       router.push('/dashboard');
     } catch (e) {
@@ -152,7 +152,7 @@ export default function SocialLogsPage() {
               <div className="relative aspect-video">
                 <Image 
                   src={log.imageUrl || `https://picsum.photos/seed/${log.id}/600/400`} 
-                  alt={log.name} 
+                  alt={log.name || 'Social Account'} 
                   fill 
                   className="object-cover"
                   data-ai-hint="social media"
@@ -164,8 +164,8 @@ export default function SocialLogsPage() {
                 </div>
               </div>
               <CardHeader>
-                <CardTitle className="text-lg">{log.name}</CardTitle>
-                <CardDescription className="line-clamp-2">{log.description}</CardDescription>
+                <CardTitle className="text-lg">{log.name || 'Aged Social Account'}</CardTitle>
+                <CardDescription className="line-clamp-2">{log.description || 'No description available'}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-1.5">
