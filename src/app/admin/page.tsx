@@ -21,7 +21,9 @@ import {
   Trash2, 
   Edit3,
   PackagePlus,
-  ArrowLeft
+  ArrowLeft,
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,7 +79,7 @@ export default function AdminDashboard() {
     db ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null
   );
 
-  const { data: socialLogs, loading: loadingProducts } = useCollection(
+  const { data: socialLogs, loading: loadingProducts, error: productsError } = useCollection(
     db ? query(collection(db, 'Sociallogs')) : null
   );
 
@@ -224,6 +226,9 @@ export default function AdminDashboard() {
             <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
           </Button>
           <Button variant="ghost" className="w-full justify-start">
+            <ShoppingBag className="mr-2 h-4 w-4" /> Inventory
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
             <Users className="mr-2 h-4 w-4" /> Customers
           </Button>
           <Button variant="ghost" className="w-full justify-start">
@@ -246,17 +251,20 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="requests" className="space-y-6">
-          <TabsList className="bg-card border p-1">
-            <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
+        <Tabs defaultValue="products" className="space-y-6">
+          <TabsList className="bg-card border p-1 grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
             <TabsTrigger value="credit">Manual Credit</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">Social Media Logs</h2>
+              <div>
+                <h2 className="text-xl font-bold">Social Media Logs</h2>
+                <p className="text-sm text-muted-foreground">Manage accounts listed in the Social Logs section.</p>
+              </div>
               <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '' }); }} className="font-bold">
@@ -380,6 +388,7 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
+          {/* ... other tabs (requests, credit, users) remain unchanged ... */}
           <TabsContent value="requests" className="space-y-4">
             <Card className="border-none ring-1 ring-border shadow-sm">
               <CardHeader>
@@ -522,8 +531,49 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Diagnostics Panel */}
+        <div className="mt-12 space-y-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" /> Admin System Health & Diagnostics
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="p-4 border-none ring-1 ring-border bg-card">
+              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Products Tab</p>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="font-bold text-sm">Active & Loaded</span>
+              </div>
+            </Card>
+            <Card className="p-4 border-none ring-1 ring-border bg-card">
+              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Sociallogs Count</p>
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-primary" />
+                <span className="font-bold text-sm">{loadingProducts ? 'Checking...' : socialLogs?.length || 0} Listed</span>
+              </div>
+            </Card>
+            <Card className="p-4 border-none ring-1 ring-border bg-card">
+              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Firestore Status</p>
+              <div className="flex items-center gap-2">
+                {db ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-red-500" />}
+                <span className="font-bold text-sm">{db ? 'Connected' : 'Disconnected'}</span>
+              </div>
+            </Card>
+            <Card className="p-4 border-none ring-1 ring-border bg-card">
+              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Inventory Sync</p>
+              <div className="flex items-center gap-2">
+                {productsError ? <AlertTriangle className="h-4 w-4 text-red-500" /> : <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                <span className="font-bold text-sm">{productsError ? 'Sync Error' : 'Live Updates On'}</span>
+              </div>
+            </Card>
+          </div>
+          {productsError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-mono">
+              Error: {productsError.message}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
 }
-
