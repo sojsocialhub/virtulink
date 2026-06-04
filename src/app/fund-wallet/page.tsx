@@ -20,8 +20,20 @@ export default function FundWalletPage() {
 
   const handleFund = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !amount || Number(amount) < 100) {
-      toast({ variant: "destructive", title: "Invalid amount", description: "Minimum funding amount is ₦100." });
+    
+    const numAmount = Number(amount);
+    
+    if (!user) {
+      toast({ variant: "destructive", title: "Authentication required", description: "Please log in to fund your wallet." });
+      return;
+    }
+
+    if (!amount || isNaN(numAmount) || numAmount < 100) {
+      toast({ 
+        variant: "destructive", 
+        title: "Invalid amount", 
+        description: "Minimum funding amount is ₦100." 
+      });
       return;
     }
 
@@ -32,26 +44,32 @@ export default function FundWalletPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: user.email,
-          amount: Number(amount),
+          amount: numAmount,
           callback_url: `${window.location.origin}/fund-wallet/success`,
         }),
       });
 
       const data = await response.json();
+      
       if (data.status && data.data.authorization_url) {
+        // Redirect to Paystack
         window.location.href = data.data.authorization_url;
       } else {
-        throw new Error(data.message || 'Initialization failed');
+        throw new Error(data.message || 'Payment initialization failed');
       }
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Payment Error",
-        description: error.message || "Could not initialize payment."
+        description: error.message || "Could not initialize payment. Check your internet or try again."
       });
       setIsSubmitting(false);
     }
   };
+
+  const displayAmount = amount && !isNaN(Number(amount)) 
+    ? Number(amount).toLocaleString() 
+    : '0';
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-xl">
@@ -90,17 +108,22 @@ export default function FundWalletPage() {
             <Button 
               type="submit" 
               className="w-full h-16 text-xl font-black shadow-xl shadow-primary/20 rounded-2xl" 
-              disabled={isSubmitting || !amount}
+              disabled={isSubmitting || !amount || Number(amount) < 100}
             >
               {isSubmitting ? (
-                <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Processing...</>
+                <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Initializing...</>
               ) : (
-                <><CreditCard className="mr-2 h-6 w-6" /> Pay ₦{amount || '0'} Now</>
+                <><CreditCard className="mr-2 h-6 w-6" /> Pay ₦{displayAmount} Now</>
               )}
             </Button>
 
-            <div className="flex items-center justify-center gap-4 opacity-50 grayscale hover:grayscale-0 transition-all pt-4">
-              <img src="https://checkout.paystack.com/assets/img/logos/paystack/paystack_logo_blue.png" alt="Paystack" className="h-6" />
+            <div className="flex flex-col items-center justify-center gap-4 pt-4 border-t border-dashed">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Secure Payment Partner</p>
+              <img 
+                src="https://checkout.paystack.com/assets/img/logos/paystack/paystack_logo_blue.png" 
+                alt="Paystack" 
+                className="h-6 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all" 
+              />
             </div>
           </form>
         </CardContent>
