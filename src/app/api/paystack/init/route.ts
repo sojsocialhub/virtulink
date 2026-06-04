@@ -5,15 +5,24 @@ export async function POST(request: Request) {
   const secretKey = process.env.PAYSTACK_SECRET_KEY;
   
   if (!secretKey) {
-    console.error('PAYSTACK_SECRET_KEY is missing from environment variables');
-    return NextResponse.json({ error: 'Paystack configuration error. Please contact admin.' }, { status: 500 });
+    console.error('DEBUG: PAYSTACK_SECRET_KEY is missing from environment variables.');
+    return NextResponse.json({ 
+      status: false, 
+      message: 'Paystack configuration error: PAYSTACK_SECRET_KEY is not set.' 
+    }, { status: 500 });
   }
 
   try {
-    const { email, amount, callback_url } = await request.json();
+    const body = await request.json();
+    const { email, amount, callback_url } = body;
+
+    console.log('DEBUG: Received init request:', { email, amount, callback_url });
 
     if (!email || !amount || isNaN(amount)) {
-      return NextResponse.json({ error: 'Invalid email or amount' }, { status: 400 });
+      return NextResponse.json({ 
+        status: false, 
+        message: 'Invalid email or amount' 
+      }, { status: 400 });
     }
 
     // Paystack expects amount in kobo (Naira * 100)
@@ -34,13 +43,21 @@ export async function POST(request: Request) {
 
     const data = await response.json();
     
+    console.log('DEBUG: Paystack API Response:', data);
+
     if (!response.ok) {
-      return NextResponse.json({ status: false, message: data.message || 'Paystack initialization failed' }, { status: response.status });
+      return NextResponse.json({ 
+        status: false, 
+        message: data.message || 'Paystack initialization failed' 
+      }, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Paystack Init Route Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('DEBUG: Paystack Init Route Error:', error);
+    return NextResponse.json({ 
+      status: false, 
+      message: error.message || 'Internal Server Error' 
+    }, { status: 500 });
   }
 }
