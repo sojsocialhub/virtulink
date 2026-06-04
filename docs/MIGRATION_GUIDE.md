@@ -25,6 +25,13 @@ To download the complete source code of your project:
 2. Click on the **Download icon** (usually a cloud with a down arrow or a "Download as ZIP" option in the File menu).
 3. This will generate a `.zip` file containing all files, including your configuration and components.
 
+### Mobile Download Instructions
+If you are on a phone:
+1. Tap the **three horizontal lines** (top left) to open the sidebar.
+2. Tap the **Explorer icon** (overlapping squares).
+3. Tap the **three vertical dots (⋮)** at the top of the Explorer pane.
+4. Select **"Download as ZIP"**.
+
 ## 4. How to Back Up Firestore Data
 Since you are on a free tier without a billing account, you cannot use the automated "Export" feature to Cloud Storage. Instead, use these methods:
 - **Manual Backup (Small Data):** Go to the [Firebase Console](https://console.firebase.google.com/), select your project, go to **Firestore Database**, and manually copy the data for critical users/products.
