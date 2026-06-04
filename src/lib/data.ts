@@ -11,10 +11,10 @@ export const DATA_PLANS: ProductPlan[] = [
 ];
 
 export const ADMIN_BANK_DETAILS = {
-  accountName: 'SAMUEL AYOMIDE OLUWADARE',
+  accountName: 'S.O.J VTU HUB ENTERPRISE',
   accountNumber: '9120964447',
-  bankName: 'OPAY',
-  swiftCode: 'OPAYNGLA'
+  bankName: 'OPAY / PALMPAY',
+  swiftCode: 'N/A'
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

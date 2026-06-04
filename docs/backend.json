@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -29,16 +30,18 @@
       },
       "required": ["userId", "type", "amount", "status", "date"]
     },
-    "FundRequest": {
-      "title": "Funding Request",
-      "description": "Manual wallet funding requests for admin approval",
+    "PurchaseRequest": {
+      "title": "Purchase Request",
+      "description": "Manual bank transfer requests for digital products",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "productName": { "type": "string" },
         "amount": { "type": "number" },
-        "proofImage": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "senderName": { "type": "string" },
+        "reference": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "paid", "delivered", "rejected"] },
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "amount", "status", "date"]
@@ -71,9 +74,9 @@
       "schema": { "$ref": "#/backend/entities/Transaction" },
       "description": "Financial transaction logs"
     },
-    "/fundRequests/{requestId}": {
-      "schema": { "$ref": "#/backend/entities/FundRequest" },
-      "description": "Wallet funding approval queue"
+    "/purchase_requests/{requestId}": {
+      "schema": { "$ref": "#/backend/entities/PurchaseRequest" },
+      "description": "Manual purchase approval queue"
     },
     "/dataPlans/{planId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Data bundles" },
     "/virtualNumbers/{numberId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Virtual numbers" },
