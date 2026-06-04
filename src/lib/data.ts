@@ -11,9 +11,9 @@ export const DATA_PLANS: ProductPlan[] = [
 ];
 
 export const ADMIN_BANK_DETAILS = {
-  accountName: 'S.O.J VTU HUB ENTERPRISE',
+  accountName: 'Samuel Ayomide Oluwadare',
   accountNumber: '9120964447',
-  bankName: 'OPAY / PALMPAY',
+  bankName: 'OPay',
   swiftCode: 'N/A'
 };
 
