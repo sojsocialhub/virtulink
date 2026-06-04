@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -39,7 +38,9 @@ export default function SocialLogsPage() {
   const handlePurchase = async (log: any) => {
     if (!db || !user || !userDocRef) return;
 
-    if (log.price > walletBalance) {
+    const price = Number(log.price || 0);
+
+    if (price > walletBalance) {
       toast({ 
         variant: "destructive", 
         title: "Insufficient Balance", 
@@ -51,14 +52,14 @@ export default function SocialLogsPage() {
     setIsProcessing(true);
     try {
       await updateDoc(userDocRef, {
-        walletBalance: increment(-log.price)
+        walletBalance: increment(-price)
       });
 
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'social_log',
         service: log.name,
-        amount: log.price,
+        amount: price,
         status: 'Completed',
         date: new Date().toISOString()
       });
@@ -157,7 +158,9 @@ export default function SocialLogsPage() {
                   data-ai-hint="social media"
                 />
                 <div className="absolute top-2 right-2">
-                  <Badge className="bg-primary/90 text-white font-bold">₦{log.price.toLocaleString()}</Badge>
+                  <Badge className="bg-primary/90 text-white font-bold">
+                    ₦{(Number(log.price) || 0).toLocaleString()}
+                  </Badge>
                 </div>
               </div>
               <CardHeader>
