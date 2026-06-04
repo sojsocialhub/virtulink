@@ -5,11 +5,9 @@ import { useState, useMemo } from 'react';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
-  Users, 
+  Users as UsersIcon, 
   Settings, 
   Plus, 
-  Check, 
-  X, 
   Database, 
   Loader2, 
   Search, 
@@ -21,11 +19,12 @@ import {
   Trash2, 
   Edit3,
   PackagePlus,
-  ArrowLeft,
   Activity,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  ListOrdered
 } from 'lucide-react';
-import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,7 +33,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import Link from 'next/link';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -81,6 +79,10 @@ export default function AdminDashboard() {
 
   const { data: socialLogs, loading: loadingProducts, error: productsError } = useCollection(
     db ? query(collection(db, 'Sociallogs')) : null
+  );
+
+  const { data: allTransactions, loading: loadingAllTx } = useCollection(
+    db ? query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(50)) : null
   );
 
   const filteredUsers = useMemo(() => {
@@ -155,13 +157,13 @@ export default function AdminDashboard() {
 
       if (editingProduct) {
         await updateDoc(doc(db, 'Sociallogs', editingProduct.id), payload);
-        toast({ title: "Product Updated", description: "Product details saved successfully." });
+        toast({ title: "Product Updated" });
       } else {
         await addDoc(collection(db, 'Sociallogs'), {
           ...payload,
           createdAt: serverTimestamp()
         });
-        toast({ title: "Product Added", description: "New product listed in catalog." });
+        toast({ title: "Product Added" });
       }
 
       setIsProductModalOpen(false);
@@ -223,16 +225,19 @@ export default function AdminDashboard() {
         <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4 text-center">Admin Hub</div>
         <nav className="px-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start text-primary">
-            <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+            <LayoutDashboard className="mr-2 h-4 w-4" /> Main Dashboard
           </Button>
           <Button variant="ghost" className="w-full justify-start">
-            <ShoppingBag className="mr-2 h-4 w-4" /> Inventory
+            <ShoppingBag className="mr-2 h-4 w-4" /> Products & Inventory
           </Button>
           <Button variant="ghost" className="w-full justify-start">
-            <Users className="mr-2 h-4 w-4" /> Customers
+            <UsersIcon className="mr-2 h-4 w-4" /> Customer Management
           </Button>
           <Button variant="ghost" className="w-full justify-start">
-            <Settings className="mr-2 h-4 w-4" /> Settings
+            <ListOrdered className="mr-2 h-4 w-4" /> All Transactions
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            <Settings className="mr-2 h-4 w-4" /> Hub Settings
           </Button>
         </nav>
       </aside>
@@ -240,40 +245,41 @@ export default function AdminDashboard() {
       <main className="flex-1 p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold font-headline tracking-tight text-primary">Admin Control Center</h1>
-            <p className="text-muted-foreground">Manage products, requests, and manual credits.</p>
+            <h1 className="text-3xl font-black font-headline tracking-tight text-primary">Admin Control Center</h1>
+            <p className="text-muted-foreground">Comprehensive hub for products, manual wallet funding, and system monitoring.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
               {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-              Seed Data
+              Seed Sample Data
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="bg-card border p-1 grid grid-cols-4 w-full max-w-2xl">
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
-            <TabsTrigger value="credit">Manual Credit</TabsTrigger>
+          <TabsList className="bg-card border p-1 grid grid-cols-5 w-full max-w-4xl">
+            <TabsTrigger value="products">Inventory</TabsTrigger>
+            <TabsTrigger value="requests">Orders</TabsTrigger>
+            <TabsTrigger value="credit">Wallet Credit</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="transactions">Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold">Social Media Logs</h2>
-                <p className="text-sm text-muted-foreground">Manage accounts listed in the Social Logs section.</p>
+                <h2 className="text-xl font-bold">Product Catalog (Social Logs)</h2>
+                <p className="text-sm text-muted-foreground">Manage accounts listed in the digital store.</p>
               </div>
               <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '' }); }} className="font-bold">
-                    <Plus className="mr-2 h-4 w-4" /> Add Product
+                    <Plus className="mr-2 h-4 w-4" /> Create New Product
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Social Log'}</DialogTitle>
+                    <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Account'}</DialogTitle>
                     <DialogDescription>Fill in the details to list this account in the store.</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSaveProduct} className="space-y-4 pt-4">
@@ -323,7 +329,7 @@ export default function AdminDashboard() {
                     <DialogFooter>
                       <Button type="submit" disabled={isSavingProduct} className="w-full">
                         {isSavingProduct ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <PackagePlus className="h-4 w-4 mr-2" />}
-                        {editingProduct ? 'Update Product' : 'List Product'}
+                        {editingProduct ? 'Save Changes' : 'List Product'}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -336,8 +342,7 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Preview</TableHead>
-                      <TableHead>Product Name</TableHead>
+                      <TableHead>Product</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Features</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -345,29 +350,30 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {loadingProducts ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-20"><Loader2 className="animate-spin inline mr-2" /> Loading products...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center py-20"><Loader2 className="animate-spin inline mr-2" /> Loading inventory...</TableCell></TableRow>
                     ) : socialLogs?.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No products listed. Add your first log above.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic">No products listed.</TableCell></TableRow>
                     ) : socialLogs?.map((prod: any) => (
                       <TableRow key={prod.id}>
                         <TableCell>
-                          <div className="relative h-10 w-16 rounded overflow-hidden border">
-                            <Image 
-                              src={prod.imageUrl?.startsWith('http') ? prod.imageUrl : `https://picsum.photos/seed/${prod.id}/100/100`} 
-                              alt={prod.name} 
-                              fill 
-                              className="object-cover" 
-                            />
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-10 w-10 rounded overflow-hidden border shrink-0">
+                              <Image 
+                                src={prod.imageUrl?.startsWith('http') ? prod.imageUrl : `https://picsum.photos/seed/${prod.id}/100/100`} 
+                                alt={prod.name} 
+                                fill 
+                                className="object-cover" 
+                              />
+                            </div>
+                            <span className="font-bold">{prod.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-bold">{prod.name}</TableCell>
                         <TableCell className="font-black text-primary">₦{(prod.price || 0).toLocaleString()}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {prod.features?.slice(0, 2).map((f: string, i: number) => (
                               <Badge key={i} variant="outline" className="text-[9px]">{f}</Badge>
                             ))}
-                            {prod.features?.length > 2 && <span className="text-[9px] text-muted-foreground">+{prod.features.length - 2} more</span>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -388,22 +394,21 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* ... other tabs (requests, credit, users) remain unchanged ... */}
           <TabsContent value="requests" className="space-y-4">
             <Card className="border-none ring-1 ring-border shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" /> Pending Purchase Requests
+                  <Clock className="h-5 w-5 text-primary" /> Pending Manual Requests
                 </CardTitle>
-                <CardDescription>Manually verify bank transfers and approve account delivery.</CardDescription>
+                <CardDescription>Review bank transfer confirmations and approve funding/delivery.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>User / Date</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Payment Details</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Payment Info</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -413,54 +418,37 @@ export default function AdminDashboard() {
                     {loadingRequests ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="animate-spin inline mr-2" /> Loading...</TableCell></TableRow>
                     ) : purchaseRequests?.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No purchase requests found.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No pending requests.</TableRow>
                     ) : purchaseRequests?.map((req: any) => (
                       <TableRow key={req.id}>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-bold">{req.userEmail}</span>
+                            <span className="font-bold text-xs">{req.userEmail}</span>
                             <span className="text-[10px] text-muted-foreground">{new Date(req.date).toLocaleString()}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-bold">{req.productName}</TableCell>
+                        <TableCell className="font-bold text-xs">{req.productName}</TableCell>
                         <TableCell>
-                          <div className="text-xs">
+                          <div className="text-[10px]">
                             <p><strong>Sender:</strong> {req.senderName}</p>
                             <p><strong>Ref:</strong> {req.reference}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="font-black">₦{req.amount.toLocaleString()}</TableCell>
+                        <TableCell className="font-black text-xs">₦{req.amount.toLocaleString()}</TableCell>
                         <TableCell>
-                          <Badge className={
-                            req.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                            req.status === 'paid' ? 'bg-blue-100 text-blue-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }>
+                          <Badge variant="secondary" className="text-[9px]">
                             {req.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          {req.status === 'pending' && (
-                            <Button 
-                              size="sm" 
-                              variant="secondary"
-                              onClick={() => handleUpdateRequestStatus(req.id, 'paid')}
-                              disabled={isUpdatingRequest === req.id}
-                            >
-                              Mark Paid
-                            </Button>
-                          )}
-                          {req.status === 'paid' && (
-                            <Button 
-                              size="sm" 
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleUpdateRequestStatus(req.id, 'delivered')}
-                              disabled={isUpdatingRequest === req.id}
-                            >
-                              Deliver
-                            </Button>
-                          )}
-                          {isUpdatingRequest === req.id && <Loader2 className="animate-spin h-4 w-4 inline ml-2" />}
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                             {req.status === 'pending' && (
+                              <Button size="sm" onClick={() => handleUpdateRequestStatus(req.id, 'paid')}>Approve</Button>
+                             )}
+                             {req.status === 'paid' && (
+                              <Button size="sm" variant="secondary" onClick={() => handleUpdateRequestStatus(req.id, 'delivered')}>Finish</Button>
+                             )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -481,8 +469,8 @@ export default function AdminDashboard() {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search users..." 
-                    className="pl-10"
+                    placeholder="Find user by email or name..." 
+                    className="pl-10 h-12"
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                   />
@@ -490,9 +478,9 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
+                      <TableHead>Customer</TableHead>
                       <TableHead>Balance</TableHead>
-                      <TableHead>Amount</TableHead>
+                      <TableHead>Credit Amount</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -505,12 +493,12 @@ export default function AdminDashboard() {
                             <span className="text-xs text-muted-foreground">{u.email}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono">₦{u.walletBalance?.toLocaleString() || '0'}</TableCell>
+                        <TableCell className="font-mono text-primary font-bold">₦{u.walletBalance?.toLocaleString() || '0'}</TableCell>
                         <TableCell>
                           <Input 
                             type="number" 
-                            className="w-24 h-8" 
-                            placeholder="0"
+                            className="w-32 h-10 font-bold" 
+                            placeholder="Enter amount"
                             value={targetUserId === u.id ? creditAmount : ''}
                             onChange={(e) => {
                               setTargetUserId(u.id);
@@ -520,7 +508,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" onClick={() => handleManualCredit(u.id, u.email)} disabled={isCrediting || targetUserId !== u.id}>
-                            Credit
+                            {isCrediting && targetUserId === u.id ? <Loader2 className="animate-spin h-4 w-4" /> : "Apply Credit"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -530,48 +518,125 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+             <Card className="border-none ring-1 ring-border shadow-sm">
+                <CardHeader>
+                  <CardTitle>User Directory</CardTitle>
+                  <CardDescription>View all registered customers and their roles.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingUsers ? (
+                          <TableRow><TableCell colSpan={4} className="text-center py-8">Loading users...</TableCell></TableRow>
+                        ) : users?.map((u: any) => (
+                          <TableRow key={u.id}>
+                            <TableCell className="font-bold">{u.name}</TableCell>
+                            <TableCell>{u.email}</TableCell>
+                            <TableCell><Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>{u.role}</Badge></TableCell>
+                            <TableCell className="font-mono">₦{u.walletBalance?.toLocaleString() || '0'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                   </Table>
+                </CardContent>
+             </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions" className="space-y-4">
+             <Card className="border-none ring-1 ring-border shadow-sm">
+                <CardHeader>
+                  <CardTitle>Global Transaction Log</CardTitle>
+                  <CardDescription>History of all financial activity across the hub.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>User ID</TableHead>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingAllTx ? (
+                          <TableRow><TableCell colSpan={5} className="text-center py-8">Loading logs...</TableCell></TableRow>
+                        ) : allTransactions?.map((tx: any) => (
+                          <TableRow key={tx.id}>
+                            <TableCell><Badge variant="outline" className="capitalize">{tx.type}</Badge></TableCell>
+                            <TableCell className="text-[10px] font-mono">{tx.userId}</TableCell>
+                            <TableCell className="text-xs">{tx.service || tx.network || 'Manual'}</TableCell>
+                            <TableCell className="font-bold">₦{tx.amount?.toLocaleString()}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">{new Date(tx.date).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                   </Table>
+                </CardContent>
+             </Card>
+          </TabsContent>
         </Tabs>
 
-        {/* Diagnostics Panel */}
-        <div className="mt-12 space-y-4">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" /> Admin System Health & Diagnostics
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Diagnostics & Navigation Panel */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" /> Admin System Health
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="p-4 border-none ring-1 ring-border bg-card">
+                <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">Firestore Conn</p>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="font-bold text-xs">Active</span>
+                </div>
+              </Card>
+              <Card className="p-4 border-none ring-1 ring-border bg-card">
+                <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">Sociallogs Count</p>
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  <span className="font-bold text-xs">{socialLogs?.length || 0} Products</span>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" /> Admin Navigation Index
+            </h3>
             <Card className="p-4 border-none ring-1 ring-border bg-card">
-              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Products Tab</p>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="font-bold text-sm">Active & Loaded</span>
-              </div>
-            </Card>
-            <Card className="p-4 border-none ring-1 ring-border bg-card">
-              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Sociallogs Count</p>
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-primary" />
-                <span className="font-bold text-sm">{loadingProducts ? 'Checking...' : socialLogs?.length || 0} Listed</span>
-              </div>
-            </Card>
-            <Card className="p-4 border-none ring-1 ring-border bg-card">
-              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Firestore Status</p>
-              <div className="flex items-center gap-2">
-                {db ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-red-500" />}
-                <span className="font-bold text-sm">{db ? 'Connected' : 'Disconnected'}</span>
-              </div>
-            </Card>
-            <Card className="p-4 border-none ring-1 ring-border bg-card">
-              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Inventory Sync</p>
-              <div className="flex items-center gap-2">
-                {productsError ? <AlertTriangle className="h-4 w-4 text-red-500" /> : <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                <span className="font-bold text-sm">{productsError ? 'Sync Error' : 'Live Updates On'}</span>
-              </div>
+              <ul className="text-xs space-y-2">
+                <li className="flex justify-between items-center pb-2 border-b">
+                   <span className="font-bold">Digital Store Mgmt</span>
+                   <Badge variant="outline">/admin?tab=products</Badge>
+                </li>
+                <li className="flex justify-between items-center pb-2 border-b">
+                   <span className="font-bold">Manual Wallet Credit</span>
+                   <Badge variant="outline">/admin?tab=credit</Badge>
+                </li>
+                <li className="flex justify-between items-center pb-2 border-b">
+                   <span className="font-bold">Bank Transfer Approval</span>
+                   <Badge variant="outline">/admin?tab=requests</Badge>
+                </li>
+                <li className="flex justify-between items-center">
+                   <span className="font-bold">Global Audit Logs</span>
+                   <Badge variant="outline">/admin?tab=transactions</Badge>
+                </li>
+              </ul>
             </Card>
           </div>
-          {productsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-mono">
-              Error: {productsError.message}
-            </div>
-          )}
         </div>
       </main>
     </div>

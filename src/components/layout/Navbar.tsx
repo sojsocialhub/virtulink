@@ -55,8 +55,10 @@ export default function Navbar() {
                   <History className="h-4 w-4" /> History
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
-                    <ShieldAlert className="h-4 w-4" /> Admin
+                  <Link href="/admin">
+                    <Button variant="destructive" size="sm" className="font-black bg-primary hover:bg-primary/90 text-white border-none shadow-lg">
+                      <ShieldAlert className="h-4 w-4 mr-1.5" /> Admin Hub
+                    </Button>
                   </Link>
                 )}
                 <div className="h-8 w-px bg-border mx-2" />
@@ -108,8 +110,8 @@ export default function Navbar() {
                   <History className="h-5 w-5" /> History
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                    <ShieldAlert className="h-5 w-5" /> Admin
+                  <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg" onClick={() => setIsMenuOpen(false)}>
+                    <ShieldAlert className="h-5 w-5" /> Admin Hub
                   </Link>
                 )}
                 <Link href="/profile" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
