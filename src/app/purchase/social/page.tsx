@@ -31,6 +31,18 @@ export default function SocialLogsPage() {
     db ? query(collection(db, collectionName)) : null
   );
 
+  // Helper to safely parse price from Firestore (handles numbers or strings with symbols)
+  const getPrice = (log: any): number => {
+    const rawPrice = log.price ?? log.Price ?? 0;
+    if (typeof rawPrice === 'number') return rawPrice;
+    if (typeof rawPrice === 'string') {
+      // Remove any non-numeric characters except for the decimal point
+      const cleaned = rawPrice.replace(/[^0-9.]/g, '');
+      return parseFloat(cleaned) || 0;
+    }
+    return 0;
+  };
+
   // Debugging info
   const projectId = app?.options?.projectId || 'Not Found';
   const docIds = logs?.map(l => l.id) || [];
@@ -38,7 +50,16 @@ export default function SocialLogsPage() {
   const handlePurchase = async (log: any) => {
     if (!db || !user || !userDocRef) return;
 
-    const price = Number(log.price || 0);
+    const price = getPrice(log);
+
+    if (price <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Product",
+        description: "This product does not have a valid price set."
+      });
+      return;
+    }
 
     if (price > walletBalance) {
       toast({ 
@@ -86,14 +107,14 @@ export default function SocialLogsPage() {
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
+      <header className="mb-6 text-center lg:text-left">
+        <h1 className="text-3xl font-bold flex items-center justify-center lg:justify-start gap-2">
           <MessageSquare className="h-8 w-8 text-primary" /> Social Media Logs
         </h1>
         <p className="text-muted-foreground">High-trust, aged accounts for your business needs.</p>
       </header>
 
-      {/* Connection Diagnostics Panel */}
+      {/* Connection Diagnostics Panel - Can be removed once verified */}
       <Card className="mb-8 border-none ring-1 ring-blue-200 bg-blue-50/30 overflow-hidden">
         <CardHeader className="py-3 bg-blue-100/50">
           <CardTitle className="text-xs flex items-center gap-2 text-blue-700 uppercase tracking-widest font-black">
@@ -106,23 +127,21 @@ export default function SocialLogsPage() {
             <span className="font-bold text-blue-600">{projectId}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Firestore Collection:</span>
+            <span className="text-muted-foreground">Collection:</span>
             <span className="font-bold">"{collectionName}"</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Data Source:</span>
-            <span className="text-green-600 font-bold uppercase">Live Firestore DB</span>
           </div>
           <div className="flex justify-between border-t pt-2">
             <span className="text-muted-foreground">Documents Found:</span>
             <span className="font-bold">{logs?.length || 0}</span>
           </div>
-          {docIds.length > 0 && (
-            <div className="pt-1">
-              <span className="text-muted-foreground">Document IDs:</span>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {docIds.map(id => (
-                  <span key={id} className="px-1 bg-white border rounded text-[9px]">{id}</span>
+          {logs && logs.length > 0 && (
+            <div className="pt-2">
+              <p className="text-muted-foreground mb-1">Raw Prices Debug:</p>
+              <div className="flex flex-wrap gap-2">
+                {logs.slice(0, 3).map(l => (
+                  <span key={l.id} className="px-1 bg-white border rounded">
+                    ID:{l.id.slice(0,4)} | Val:{JSON.stringify(l.price ?? l.Price)}
+                  </span>
                 ))}
               </div>
             </div>
@@ -130,14 +149,11 @@ export default function SocialLogsPage() {
         </CardContent>
       </Card>
 
-      {/* Firestore Error Display */}
       {logsError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Firestore Connection Error</AlertTitle>
-          <AlertDescription>
-            {logsError.message}
-          </AlertDescription>
+          <AlertTitle>Firestore Error</AlertTitle>
+          <AlertDescription>{logsError.message}</AlertDescription>
         </Alert>
       )}
 
@@ -147,59 +163,61 @@ export default function SocialLogsPage() {
         </div>
       ) : logs && logs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {logs.map((log: any) => (
-            <Card key={log.id} className="overflow-hidden border-none ring-1 ring-border group hover:shadow-lg transition-all">
-              <div className="relative aspect-video">
-                <Image 
-                  src={log.imageUrl || `https://picsum.photos/seed/${log.id}/600/400`} 
-                  alt={log.name || 'Social Account'} 
-                  fill 
-                  className="object-cover"
-                  data-ai-hint="social media"
-                />
-                <div className="absolute top-2 right-2">
-                  <Badge className="bg-primary/90 text-white font-bold">
-                    ₦{(Number(log.price) || 0).toLocaleString()}
-                  </Badge>
+          {logs.map((log: any) => {
+            const productPrice = getPrice(log);
+            return (
+              <Card key={log.id} className="overflow-hidden border-none ring-1 ring-border group hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="relative aspect-video">
+                  <Image 
+                    src={log.imageUrl || `https://picsum.photos/seed/${log.id}/600/400`} 
+                    alt={log.name || 'Social Account'} 
+                    fill 
+                    className="object-cover"
+                    data-ai-hint="social media"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-primary text-white font-bold text-sm shadow-lg">
+                      ₦{productPrice.toLocaleString()}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-              <CardHeader>
-                <CardTitle className="text-lg">{log.name || 'Aged Social Account'}</CardTitle>
-                <CardDescription className="line-clamp-2">{log.description || 'No description available'}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-1.5">
-                  {log.features?.map((f: string, i: number) => (
-                    <li key={i} className="text-xs flex items-center gap-2 text-muted-foreground">
-                      <div className="h-1 w-1 rounded-full bg-primary" /> {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button 
-                  onClick={() => handlePurchase(log)}
-                  className="w-full font-bold"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <ShoppingBag className="h-4 w-4 mr-2" />}
-                  Buy Account
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardHeader>
+                  <CardTitle className="text-lg">{log.name || 'Aged Social Account'}</CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {log.description || 'No description provided for this high-trust account.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
+                  {log.features && log.features.length > 0 && (
+                    <ul className="space-y-1.5 mb-4">
+                      {log.features.map((f: string, i: number) => (
+                        <li key={i} className="text-xs flex items-center gap-2 text-muted-foreground">
+                          <div className="h-1 w-1 rounded-full bg-primary" /> {f}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <Button 
+                    onClick={() => handlePurchase(log)}
+                    className="w-full font-bold h-11"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <ShoppingBag className="h-4 w-4 mr-2" />}
+                    Buy Now - ₦{productPrice.toLocaleString()}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-20 bg-card rounded-2xl border-2 border-dashed">
           <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-bold mb-2">No Accounts Available</h3>
-          <p className="text-muted-foreground">
-            We successfully connected to project <code className="text-blue-600">{projectId}</code> but found 0 documents in <code className="text-primary">{collectionName}</code>.
+          <p className="text-muted-foreground max-w-md mx-auto">
+            We checked the <code className="text-primary">{collectionName}</code> collection but found 0 documents. 
+            Please ensure you have added documents with a <code className="font-bold">name</code> and <code className="font-bold">price</code> field.
           </p>
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg max-w-sm mx-auto text-left text-[11px] space-y-2">
-            <p className="font-bold text-muted-foreground uppercase">Please check:</p>
-            <p>• Is the collection name exactly <code className="font-bold">Sociallogs</code> (case-sensitive)?</p>
-            <p>• Is the document inside a collection, not a sub-collection?</p>
-            <p>• Did you add fields like <code className="font-bold">name</code> and <code className="font-bold">price</code>?</p>
-          </div>
         </div>
       )}
     </div>
