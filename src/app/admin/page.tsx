@@ -33,8 +33,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { useFirestore, useCollection } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';
@@ -42,7 +42,7 @@ import Image from 'next/image';
 const SAMPLE_PLANS = [
   { name: "MTN 1GB SME", network: "MTN", price: 300, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
   { name: "MTN 2GB SME", network: "MTN", price: 600, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
-  { name: "Airtel 1.5GB", network: "Airtel", price: 500, description: "30 Days Validity - Gifting", type: "data", features: ["30 Days", "Gifting"] },
+  { name: "Airtel 1.5GB", network: "Airtel", price: 450, description: "30 Days Validity - Gifting", type: "data", features: ["30 Days", "Gifting"] },
   { name: "Glo 2.9GB", network: "Glo", price: 950, description: "30 Days Validity", type: "data", features: ["30 Days"] },
 ];
 
@@ -67,23 +67,35 @@ export default function AdminDashboard() {
   });
 
   const db = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
-  const { data: users, loading: loadingUsers } = useCollection(
-    db ? query(collection(db, 'users')) : null
+  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+  const isAdmin = userData?.role === 'admin';
+
+  // Memoized Admin Queries
+  const usersQuery = useMemo(() => 
+    db && isAdmin ? query(collection(db, 'users')) : null, 
+    [db, isAdmin]
+  );
+  const requestsQuery = useMemo(() => 
+    db && isAdmin ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null, 
+    [db, isAdmin]
+  );
+  const logsQuery = useMemo(() => 
+    db && isAdmin ? query(collection(db, 'Sociallogs')) : null, 
+    [db, isAdmin]
+  );
+  const allTxQuery = useMemo(() => 
+    db && isAdmin ? query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(50)) : null, 
+    [db, isAdmin]
   );
 
-  const { data: purchaseRequests, loading: loadingRequests } = useCollection(
-    db ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null
-  );
-
-  const { data: socialLogs, loading: loadingProducts, error: productsError } = useCollection(
-    db ? query(collection(db, 'Sociallogs')) : null
-  );
-
-  const { data: allTransactions, loading: loadingAllTx } = useCollection(
-    db ? query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(50)) : null
-  );
+  const { data: users, loading: loadingUsers } = useCollection(usersQuery);
+  const { data: purchaseRequests, loading: loadingRequests } = useCollection(requestsQuery);
+  const { data: socialLogs, loading: loadingProducts } = useCollection(logsQuery);
+  const { data: allTransactions, loading: loadingAllTx } = useCollection(allTxQuery);
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -218,6 +230,21 @@ export default function AdminDashboard() {
       setIsSeeding(false);
     }
   };
+
+  if (!user) {
+    return <div className="p-20 text-center">Please login to access the admin area.</div>;
+  }
+
+  if (userData && !isAdmin) {
+    return (
+      <div className="p-20 text-center space-y-4">
+        <ShieldCheck className="h-16 w-16 text-destructive mx-auto" />
+        <h2 className="text-2xl font-black">Access Denied</h2>
+        <p className="text-muted-foreground">You do not have permission to view this hub.</p>
+        <Button onClick={() => window.location.href = '/'}>Return Home</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -418,7 +445,7 @@ export default function AdminDashboard() {
                     {loadingRequests ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="animate-spin inline mr-2" /> Loading...</TableCell></TableRow>
                     ) : purchaseRequests?.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No pending requests.</TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No pending requests.</TableCell></TableRow>
                     ) : purchaseRequests?.map((req: any) => (
                       <TableRow key={req.id}>
                         <TableCell>
