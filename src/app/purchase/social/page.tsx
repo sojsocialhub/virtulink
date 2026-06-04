@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageSquare, ChevronLeft, CreditCard, Loader2, Info, ShoppingBag, AlertCircle, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ export default function SocialLogsPage() {
   const { data: userData } = useDoc(userDocRef);
   const walletBalance = userData?.walletBalance || 0;
 
-  const collectionName = 'socialLogs';
+  const collectionName = 'Sociallogs';
   const { data: logs, loading: loadingLogs, error: logsError } = useCollection(
     db ? query(collection(db, collectionName)) : null
   );
@@ -192,7 +193,7 @@ export default function SocialLogsPage() {
           </p>
           <div className="mt-6 p-4 bg-muted/50 rounded-lg max-w-sm mx-auto text-left text-[11px] space-y-2">
             <p className="font-bold text-muted-foreground uppercase">Please check:</p>
-            <p>• Is the collection name exactly <code className="font-bold">socialLogs</code> (case-sensitive)?</p>
+            <p>• Is the collection name exactly <code className="font-bold">Sociallogs</code> (case-sensitive)?</p>
             <p>• Is the document inside a collection, not a sub-collection?</p>
             <p>• Did you add fields like <code className="font-bold">name</code> and <code className="font-bold">price</code>?</p>
           </div>

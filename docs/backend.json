@@ -78,6 +78,6 @@
     },
     "/dataPlans/{planId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Data bundles" },
     "/virtualNumbers/{numberId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Virtual numbers" },
-    "/socialLogs/{logId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Aged social accounts" }
+    "/Sociallogs/{logId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Aged social accounts" }
   }
 }
