@@ -2,19 +2,42 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { LayoutDashboard, ShoppingBag, Users, Settings, Plus, Check, X, Database, Loader2, Search, CreditCard, History, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { 
+  LayoutDashboard, 
+  ShoppingBag, 
+  Users, 
+  Settings, 
+  Plus, 
+  Check, 
+  X, 
+  Database, 
+  Loader2, 
+  Search, 
+  CreditCard, 
+  History, 
+  Clock, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Trash2, 
+  Edit3,
+  PackagePlus,
+  ArrowLeft
+} from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { useFirestore, useCollection } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, increment, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
+import Image from 'next/image';
 
 const SAMPLE_PLANS = [
   { name: "MTN 1GB SME", network: "MTN", price: 300, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
@@ -31,6 +54,18 @@ export default function AdminDashboard() {
   const [userSearch, setUserSearch] = useState('');
   const [isUpdatingRequest, setIsUpdatingRequest] = useState<string | null>(null);
   
+  // Product state
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    imageUrl: '',
+    features: ''
+  });
+
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -40,6 +75,10 @@ export default function AdminDashboard() {
 
   const { data: purchaseRequests, loading: loadingRequests } = useCollection(
     db ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null
+  );
+
+  const { data: socialLogs, loading: loadingProducts } = useCollection(
+    db ? query(collection(db, 'Sociallogs')) : null
   );
 
   const filteredUsers = useMemo(() => {
@@ -97,6 +136,64 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!db) return;
+
+    setIsSavingProduct(true);
+    try {
+      const payload = {
+        name: productForm.name,
+        description: productForm.description,
+        price: Number(productForm.price),
+        imageUrl: productForm.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
+        features: productForm.features.split(',').map(f => f.trim()).filter(f => f !== ''),
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingProduct) {
+        await updateDoc(doc(db, 'Sociallogs', editingProduct.id), payload);
+        toast({ title: "Product Updated", description: "Product details saved successfully." });
+      } else {
+        await addDoc(collection(db, 'Sociallogs'), {
+          ...payload,
+          createdAt: serverTimestamp()
+        });
+        toast({ title: "Product Added", description: "New product listed in catalog." });
+      }
+
+      setIsProductModalOpen(false);
+      setEditingProduct(null);
+      setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '' });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name || '',
+      description: product.description || '',
+      price: String(product.price || ''),
+      imageUrl: product.imageUrl || '',
+      features: Array.isArray(product.features) ? product.features.join(', ') : ''
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!db || !confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await deleteDoc(doc(db, 'Sociallogs', id));
+      toast({ title: "Product Deleted" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Delete Failed", description: error.message });
+    }
+  };
+
   const handleSeedData = async () => {
     if (!db) return;
     setIsSeeding(true);
@@ -121,18 +218,16 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-64 border-r bg-card hidden lg:block">
-        <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4">Admin Hub</div>
+        <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4 text-center">Admin Hub</div>
         <nav className="px-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start text-primary">
             <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
           </Button>
-          <Link href="/admin/products" className="block">
-            <Button variant="ghost" className="w-full justify-start">
-              <ShoppingBag className="mr-2 h-4 w-4" /> Products
-            </Button>
-          </Link>
           <Button variant="ghost" className="w-full justify-start">
             <Users className="mr-2 h-4 w-4" /> Customers
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            <Settings className="mr-2 h-4 w-4" /> Settings
           </Button>
         </nav>
       </aside>
@@ -141,7 +236,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight text-primary">Admin Control Center</h1>
-            <p className="text-muted-foreground">Manage purchase requests, manual credits, and data plans.</p>
+            <p className="text-muted-foreground">Manage products, requests, and manual credits.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={handleSeedData} disabled={isSeeding}>
@@ -154,9 +249,136 @@ export default function AdminDashboard() {
         <Tabs defaultValue="requests" className="space-y-6">
           <TabsList className="bg-card border p-1">
             <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="credit">Manual Credit</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="products" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">Social Media Logs</h2>
+              <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { setEditingProduct(null); setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '' }); }} className="font-bold">
+                    <Plus className="mr-2 h-4 w-4" /> Add Product
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Social Log'}</DialogTitle>
+                    <DialogDescription>Fill in the details to list this account in the store.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSaveProduct} className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Product Name</Label>
+                      <Input 
+                        placeholder="e.g. Aged Facebook Account" 
+                        value={productForm.name}
+                        onChange={e => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Price (₦)</Label>
+                      <Input 
+                        type="number"
+                        placeholder="3500" 
+                        value={productForm.price}
+                        onChange={e => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea 
+                        placeholder="Short description of account quality..." 
+                        value={productForm.description}
+                        onChange={e => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Image URL (Optional)</Label>
+                      <Input 
+                        placeholder="https://..." 
+                        value={productForm.imageUrl}
+                        onChange={e => setProductForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Features (Comma separated)</Label>
+                      <Input 
+                        placeholder="2FA Enabled, Marketplace, 500+ Friends" 
+                        value={productForm.features}
+                        onChange={e => setProductForm(prev => ({ ...prev, features: e.target.value }))}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={isSavingProduct} className="w-full">
+                        {isSavingProduct ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <PackagePlus className="h-4 w-4 mr-2" />}
+                        {editingProduct ? 'Update Product' : 'List Product'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <Card className="border-none shadow-sm ring-1 ring-border">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Preview</TableHead>
+                      <TableHead>Product Name</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Features</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingProducts ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-20"><Loader2 className="animate-spin inline mr-2" /> Loading products...</TableCell></TableRow>
+                    ) : socialLogs?.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">No products listed. Add your first log above.</TableCell></TableRow>
+                    ) : socialLogs?.map((prod: any) => (
+                      <TableRow key={prod.id}>
+                        <TableCell>
+                          <div className="relative h-10 w-16 rounded overflow-hidden border">
+                            <Image 
+                              src={prod.imageUrl?.startsWith('http') ? prod.imageUrl : `https://picsum.photos/seed/${prod.id}/100/100`} 
+                              alt={prod.name} 
+                              fill 
+                              className="object-cover" 
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold">{prod.name}</TableCell>
+                        <TableCell className="font-black text-primary">₦{(prod.price || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {prod.features?.slice(0, 2).map((f: string, i: number) => (
+                              <Badge key={i} variant="outline" className="text-[9px]">{f}</Badge>
+                            ))}
+                            {prod.features?.length > 2 && <span className="text-[9px] text-muted-foreground">+{prod.features.length - 2} more</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button size="icon" variant="ghost" onClick={() => handleEditProduct(prod)}>
+                              <Edit3 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDeleteProduct(prod.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="requests" className="space-y-4">
             <Card className="border-none ring-1 ring-border shadow-sm">
@@ -304,3 +526,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
