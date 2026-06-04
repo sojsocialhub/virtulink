@@ -23,15 +23,46 @@ export default function SocialLogsPage() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [deepTrace, setDeepTrace] = useState<any>(null);
 
-  // Fetch real user data for wallet balance
   const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
   const walletBalance = userData?.walletBalance || 0;
 
   const collectionName = 'Sociallogs';
-  const { data: logs, loading: loadingLogs, error: logsError } = useCollection(
+  const { data: rawLogs, loading: loadingLogs, error: logsError } = useCollection(
     db ? query(collection(db, collectionName)) : null
   );
+
+  /**
+   * Deep-trims all keys in an object to remove trailing/leading whitespace.
+   */
+  const sanitizeObject = (obj: any): any => {
+    if (!obj || typeof obj !== 'object' || obj instanceof Date) return obj;
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => sanitizeObject(item));
+    }
+
+    const sanitized: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const trimmedKey = key.trim();
+        const value = obj[key];
+        sanitized[trimmedKey] = (typeof value === 'object' && value !== null) 
+          ? sanitizeObject(value) 
+          : value;
+      }
+    }
+    return sanitized;
+  };
+
+  /**
+   * Sanitized version of the logs from Firestore
+   */
+  const logs = useMemo(() => {
+    if (!rawLogs) return [];
+    return rawLogs.map(log => sanitizeObject(log));
+  }, [rawLogs]);
 
   /**
    * Helper to validate URLs for Next.js Image component
@@ -42,22 +73,11 @@ export default function SocialLogsPage() {
   };
 
   /**
-   * Case-insensitive, whitespace-resilient field extractor
-   */
-  const getFlexibleValue = (item: any, possibleNames: string[]): any => {
-    if (!item || typeof item !== 'object') return undefined;
-    const keys = Object.keys(item);
-    const normalizedTarget = possibleNames.map(n => n.toLowerCase());
-    
-    const foundKey = keys.find(k => normalizedTarget.includes(k.toLowerCase().trim()));
-    return foundKey ? item[foundKey] : undefined;
-  };
-
-  /**
    * Resilient price parser
    */
   const getPriceData = (log: any) => {
-    const rawPrice = getFlexibleValue(log, ['price', 'amount', 'cost', 'value']);
+    // After sanitization, keys like "price " are now "price"
+    const rawPrice = log.price || log.Price || log.amount || log.Amount;
     const type = typeof rawPrice;
     let parsed = 0;
 
@@ -66,17 +86,10 @@ export default function SocialLogsPage() {
         parsed = rawPrice;
       } else if (type === 'string') {
         parsed = parseFloat(rawPrice.replace(/[^0-9.]/g, '')) || 0;
-      } else if (type === 'object') {
-        // Handle Firestore Long objects or Timestamps (if misused)
-        if (typeof (rawPrice as any).toNumber === 'function') {
-          parsed = (rawPrice as any).toNumber();
-        } else if (typeof (rawPrice as any).toMillis === 'function') {
-          parsed = (rawPrice as any).toMillis();
-        } else if (rawPrice.seconds !== undefined) {
-          parsed = rawPrice.seconds;
-        } else {
-          parsed = parseFloat(String(rawPrice)) || 0;
-        }
+      } else if (rawPrice && typeof (rawPrice as any).toNumber === 'function') {
+        parsed = (rawPrice as any).toNumber();
+      } else {
+        parsed = parseFloat(String(rawPrice)) || 0;
       }
     }
 
@@ -84,21 +97,19 @@ export default function SocialLogsPage() {
   };
 
   const handlePurchase = async (log: any) => {
-    // 1. Trace the entry point
     const { raw, type, parsed } = getPriceData(log);
     const logKeys = Object.keys(log || {});
     
     const trace = [
       `[1] CHECKOUT ENTRY: ID ${log.id}`,
-      `[2] DETECTED KEYS: ${logKeys.join(', ')}`,
+      `[2] SANITIZED KEYS: ${logKeys.join(', ')}`,
       `[3] PRICE RAW: ${JSON.stringify(raw)}`,
       `[4] PRICE TYPE: ${type}`,
       `[5] PRICE PARSED: ${parsed}`
     ];
     
     setDebugLog(trace);
-    setDeepTrace({ stage: 'checkout_receive', keys: logKeys, fullObject: { ...log } });
-    console.log("PURCHASE_TRACE:", { log, parsed, type, raw });
+    setDeepTrace({ stage: 'checkout_click', keys: logKeys, fullObject: { ...log } });
 
     if (!db || !user || !userDocRef) return;
 
@@ -106,7 +117,7 @@ export default function SocialLogsPage() {
       toast({
         variant: "destructive",
         title: "Price Validation Error",
-        description: `Price received: ${JSON.stringify(raw)}, Type: ${type}, Parsed: ${parsed}`
+        description: `Price received: ${JSON.stringify(raw)}, Type: ${type}, Parsed: ${parsed}. Check Firestore for 'price' field.`
       });
       return;
     }
@@ -129,7 +140,7 @@ export default function SocialLogsPage() {
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'social_log',
-        service: getFlexibleValue(log, ['name', 'title']) || 'Social Account',
+        service: log.name || log.Name || 'Social Account',
         amount: parsed,
         status: 'Completed',
         date: new Date().toISOString()
@@ -176,7 +187,7 @@ export default function SocialLogsPage() {
       <Card className="mb-8 border-none ring-1 ring-primary/20 bg-primary/[0.02] overflow-hidden">
         <CardHeader className="py-2 bg-primary/10 border-b border-primary/10">
           <CardTitle className="text-[10px] flex items-center gap-2 text-primary uppercase tracking-widest font-black">
-            <Terminal className="h-3 w-3" /> System Trace Diagnostics
+            <Terminal className="h-3 w-3" /> Sanitization & Trace Diagnostics
           </CardTitle>
         </CardHeader>
         <CardContent className="py-4 space-y-4 text-[11px] font-mono">
@@ -189,7 +200,7 @@ export default function SocialLogsPage() {
             <div className="space-y-1">
               <p className="text-muted-foreground uppercase text-[9px] font-bold">Inventory</p>
               <p>Docs Found: <span className="font-bold">{logs?.length || 0}</span></p>
-              <p>Status: <span className="text-green-600 font-bold">{loadingLogs ? 'Loading...' : 'Ready'}</span></p>
+              <p>Normalization: <span className="text-green-600 font-bold">Active (Trimming Keys)</span></p>
             </div>
             {debugLog.length > 0 && (
               <div className="space-y-1 border-l pl-4 border-primary/20">
@@ -204,7 +215,7 @@ export default function SocialLogsPage() {
           {deepTrace && (
             <div className="pt-3 border-t border-primary/10">
               <p className="text-primary font-bold mb-2 flex items-center gap-2">
-                <FileJson className="h-3 w-3" /> Raw Object Snapshot ({deepTrace.stage})
+                <FileJson className="h-3 w-3" /> Sanitized Object Snapshot
               </p>
               <pre className="p-2 bg-black/5 rounded text-[10px] overflow-auto max-h-32">
                 {JSON.stringify(deepTrace.fullObject, null, 2)}
@@ -230,9 +241,9 @@ export default function SocialLogsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {logs.map((log: any) => {
             const priceData = getPriceData(log);
-            const name = getFlexibleValue(log, ['name', 'title']) || 'Untitled Account';
-            const desc = getFlexibleValue(log, ['description', 'desc', 'summary']) || 'No description available.';
-            const rawImage = getFlexibleValue(log, ['imageUrl', 'image', 'photo']);
+            const name = log.name || log.Name || 'Untitled Account';
+            const desc = log.description || log.Description || 'No description available.';
+            const rawImage = log.imageUrl || log.ImageUrl || log.image;
             const image = isValidImageUrl(rawImage) ? rawImage : `https://picsum.photos/seed/${log.id}/600/400`;
 
             return (
@@ -257,10 +268,7 @@ export default function SocialLogsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2 mt-auto">
                   <Button 
-                    onClick={() => {
-                      console.log("CLICK_EMIT:", log);
-                      handlePurchase(log);
-                    }}
+                    onClick={() => handlePurchase(log)}
                     className="w-full font-black h-11"
                     disabled={isProcessing}
                   >
