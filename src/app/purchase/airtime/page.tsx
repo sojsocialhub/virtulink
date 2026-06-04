@@ -14,8 +14,6 @@ import { NETWORKS } from '@/lib/data';
 import Link from 'next/link';
 import { doc, addDoc, collection, updateDoc, increment } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc } from '@/firebase';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function AirtimePage() {
   const { toast } = useToast();
@@ -45,19 +43,21 @@ export default function AirtimePage() {
     }
 
     if (amount > walletBalance) {
-      toast({ variant: "destructive", title: "Insufficient Balance", description: "Please fund your wallet to proceed." });
+      toast({ 
+        variant: "destructive", 
+        title: "Insufficient Balance", 
+        description: `Price: ₦${amount.toLocaleString()}, Your Balance: ₦${walletBalance.toLocaleString()}. Please fund your wallet.` 
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Deduct Balance
       await updateDoc(userDocRef, {
         walletBalance: increment(-amount)
       });
 
-      // 2. Create Transaction
       await addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'airtime',
@@ -68,20 +68,10 @@ export default function AirtimePage() {
         date: new Date().toISOString()
       });
 
-      toast({
-        title: "Purchase Successful!",
-        description: `₦${amount} ${formData.network} airtime sent to ${formData.phoneNumber}`
-      });
+      toast({ title: "Purchase Successful!", description: `₦${amount} ${formData.network} airtime sent to ${formData.phoneNumber}` });
       router.push('/dashboard');
     } catch (e: any) {
-      const error = new FirestorePermissionError({
-        path: 'transactions',
-        operation: 'create',
-        requestResourceData: formData
-      });
-      errorEmitter.emit('permission-error', error);
-      toast({ variant: "destructive", title: "Error", description: "Purchase failed. Check balance." });
-    } finally {
+      toast({ variant: "destructive", title: "Error", description: "Purchase failed. Please try again." });
       setLoading(false);
     }
   };
@@ -92,19 +82,19 @@ export default function AirtimePage() {
         <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </Link>
 
-      <Card className="border-none shadow-sm ring-1 ring-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-primary" /> Buy Airtime
+      <Card className="border-none shadow-2xl ring-1 ring-border rounded-3xl overflow-hidden">
+        <CardHeader className="bg-primary text-white py-8">
+          <CardTitle className="text-2xl font-black flex items-center gap-2">
+            <Smartphone className="h-6 w-6" /> Buy Airtime
           </CardTitle>
-          <CardDescription>Instant top-up for all major Nigerian networks.</CardDescription>
+          <CardDescription className="text-primary-foreground/80">Instant top-up for all major Nigerian networks.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-8">
           <form onSubmit={handlePurchase} className="space-y-6">
             <div className="space-y-2">
-              <Label>Select Network</Label>
+              <Label className="font-bold">Select Network</Label>
               <Select onValueChange={(v) => setFormData(prev => ({ ...prev, network: v }))}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-14 rounded-xl border-2">
                   <SelectValue placeholder="Choose a network" />
                 </SelectTrigger>
                 <SelectContent>
@@ -116,11 +106,11 @@ export default function AirtimePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Phone Number</Label>
+              <Label className="font-bold">Phone Number</Label>
               <Input 
                 type="tel" 
                 placeholder="08012345678" 
-                className="h-12"
+                className="h-14 rounded-xl border-2"
                 value={formData.phoneNumber}
                 onChange={e => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
                 required
@@ -128,28 +118,28 @@ export default function AirtimePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Amount (₦)</Label>
+              <Label className="font-bold">Amount (₦)</Label>
               <Input 
                 type="number" 
                 placeholder="Min ₦100" 
-                className="h-12 text-lg font-bold"
+                className="h-16 text-2xl font-black rounded-xl border-2"
                 value={formData.amount}
                 onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                 required
               />
             </div>
 
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex justify-between items-center">
-              <span className="text-sm text-muted-foreground font-medium">Wallet Balance</span>
-              <span className="font-bold text-primary">₦{walletBalance.toLocaleString()}</span>
+            <div className="p-4 rounded-2xl bg-muted border flex justify-between items-center">
+              <span className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Available Balance</span>
+              <span className="font-black text-lg">₦{walletBalance.toLocaleString()}</span>
             </div>
 
             <Button 
               type="submit" 
-              className="w-full h-14 text-lg font-bold" 
+              className="w-full h-16 text-xl font-black rounded-2xl shadow-xl shadow-primary/20" 
               disabled={loading || !formData.network || !formData.phoneNumber || !formData.amount}
             >
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <CreditCard className="mr-2 h-6 w-6" />}
               Pay ₦{formData.amount || '0'} Now
             </Button>
           </form>
