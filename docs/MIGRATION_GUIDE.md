@@ -19,18 +19,19 @@ The application utilizes the following collections in Firestore:
 - `virtualNumbers`: Catalog of available virtual phone number products.
 - `Sociallogs`: Catalog of available social media account products (Social Logs).
 
-## 3. How to Export/Backup Source Code
-To download the complete source code of your project:
-1. In the **Firebase Studio** sidebar, locate the file explorer.
-2. Click on the **Download icon** (usually a cloud with a down arrow or a "Download as ZIP" option in the File menu).
-3. This will generate a `.zip` file containing all files, including your configuration and components.
+## 3. Mobile Navigation & Download Instructions
+If you are using a mobile phone, the interface is hidden behind menus:
 
-### Mobile Download Instructions
-If you are on a phone:
-1. Tap the **three horizontal lines** (top left) to open the sidebar.
-2. Tap the **Explorer icon** (overlapping squares).
-3. Tap the **three vertical dots (⋮)** at the top of the Explorer pane.
-4. Select **"Download as ZIP"**.
+### How to find the Files (Explorer)
+1. Tap the **Hamburger Menu (≡)** in the top-left corner.
+2. Tap the **Overlapping Squares icon** at the top of the sidebar. This is the **Explorer**.
+3. You will now see your folders (`src`, `docs`, etc.).
+
+### How to Download as ZIP
+1. Open the **Explorer** (as described above).
+2. Look at the very top of the Explorer pane (next to the word "FILES").
+3. Tap the **three vertical dots (⋮)** menu.
+4. Select **"Download as ZIP"**. This saves your entire project to your phone.
 
 ## 4. How to Back Up Firestore Data
 Since you are on a free tier without a billing account, you cannot use the automated "Export" feature to Cloud Storage. Instead, use these methods:
@@ -48,11 +49,6 @@ You do **not** need to leave Firebase entirely. The **Firebase Spark (Free) Tier
 2. **Connect to Vercel:** Create a free account on [Vercel](https://vercel.com/). Connect your GitHub repo.
 3. **Set Environment Variables:** Copy the variables from your `.env` and `src/firebase/config.ts` into the Vercel dashboard.
 4. **Deploy:** Vercel will automatically build and deploy your Next.js app. It will continue to talk to your existing Firebase database.
-
-### Phase C: Moving away from Firebase (Optional)
-If you want to leave Firebase entirely in the future:
-1. **Database:** Look into **Supabase** (PostgreSQL). You will need to rewrite the data fetching logic in `src/firebase/` to use the Supabase client.
-2. **Authentication:** Supabase also provides Auth services similar to Firebase.
 
 ## 6. Local Development
 You can run this project on your own computer:
