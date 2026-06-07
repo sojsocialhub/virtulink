@@ -13,15 +13,26 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["src/*"],
+      "@/components/*": ["src/components/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/firebase": ["src/firebase/index.ts"],
+      "@/firebase/*": ["src/firebase/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
