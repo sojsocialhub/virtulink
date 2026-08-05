@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';

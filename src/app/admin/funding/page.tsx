@@ -12,7 +12,8 @@ import {
   Wallet,
   Calendar,
   User as UserIcon,
-  CreditCard
+  CreditCard,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,10 @@ import {
   where
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { WalletFundingRequest, WalletFundingRequestStatus } from '@/lib/types';
+import { WalletFundingRequest } from '@/lib/types';
 import Link from 'next/link';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function WalletFundingRequestsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,15 +44,19 @@ export default function WalletFundingRequestsPage() {
   const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
+  const { data: userData, loading: loadingProfile } = useDoc(userDocRef);
   const isAdmin = userData?.role === 'admin';
 
   const requestsQuery = useMemoFirebase(() => {
     if (!db || !isAdmin) return null;
-    return query(collection(db, 'wallet_funding_requests'), orderBy('timestamp', 'desc'));
+    return query(
+      collection(db, 'wallet_funding_requests'), 
+      where('status', '==', 'pending'),
+      orderBy('timestamp', 'desc')
+    );
   }, [db, isAdmin]);
 
-  const { data: requests, loading } = useCollection<WalletFundingRequest>(requestsQuery);
+  const { data: requests, loading: loadingRequests } = useCollection<WalletFundingRequest>(requestsQuery);
 
   const filteredRequests = (requests || []).filter(req => 
     req.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,20 +68,18 @@ export default function WalletFundingRequestsPage() {
     if (!db || !isAdmin) return;
     
     setProcessingId(requestId);
-    try {
-      const requestRef = doc(db, 'wallet_funding_requests', requestId);
-      const requestData = requests?.find(r => r.id === requestId);
-      
-      if (!requestData) throw new Error("Request not found");
-      if (requestData.status !== 'pending') throw new Error("Request already processed");
+    const requestData = requests?.find(r => r.id === requestId);
+    if (!requestData) return;
 
+    try {
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', requestData.userId);
-        const userSnap = await transaction.get(userRef);
+        const requestRef = doc(db, 'wallet_funding_requests', requestId);
         
-        if (!userSnap.exists()) throw new Error("User does not exist");
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User record no longer exists");
 
-        // 1. Update Request Status
+        // 1. Update the funding request status
         transaction.update(requestRef, { 
           status: status,
           processedAt: serverTimestamp(),
@@ -82,12 +87,13 @@ export default function WalletFundingRequestsPage() {
         });
 
         if (status === 'approved') {
-          // 2. Increment Wallet Balance
+          // 2. Atomically increment the user's wallet balance
+          const currentBalance = userSnap.data().walletBalance || 0;
           transaction.update(userRef, { 
-            walletBalance: (userSnap.data().walletBalance || 0) + requestData.amount 
+            walletBalance: currentBalance + requestData.amount 
           });
 
-          // 3. Create Transaction Record
+          // 3. Create a record in the global transactions collection
           const newTxRef = doc(collection(db, 'transactions'));
           transaction.set(newTxRef, {
             userId: requestData.userId,
@@ -105,20 +111,42 @@ export default function WalletFundingRequestsPage() {
 
       toast({ 
         title: `Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-        description: status === 'approved' ? `User credited with ₦${requestData.amount.toLocaleString()}` : "No changes made to wallet."
+        description: status === 'approved' ? `Wallet credited with ₦${requestData.amount.toLocaleString()}` : "The request was declined."
       });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Action Failed", description: error.message });
+      const permissionError = new FirestorePermissionError({
+        path: `wallet_funding_requests/${requestId}`,
+        operation: 'update',
+        requestResourceData: { status }
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      
+      toast({ 
+        variant: "destructive", 
+        title: "Action Failed", 
+        description: error.message || "Could not process request." 
+      });
     } finally {
       setProcessingId(null);
     }
   };
 
-  if (!isAdmin && !loading) {
+  if (loadingProfile) {
     return (
-      <div className="p-20 text-center">
-        <h2 className="text-2xl font-bold text-destructive">Unauthorized Access</h2>
-        <Link href="/dashboard"><Button className="mt-4">Back to Dashboard</Button></Link>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground font-bold">Verifying Admin Access...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center space-y-4">
+        <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
+        <h2 className="text-3xl font-black">Unauthorized Access</h2>
+        <p className="text-muted-foreground">This area is reserved for S.O.J VTU administrators.</p>
+        <Link href="/dashboard"><Button>Back to Dashboard</Button></Link>
       </div>
     );
   }
@@ -128,68 +156,55 @@ export default function WalletFundingRequestsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <Link href="/admin" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-2">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back to Admin
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back to Admin Hub
           </Link>
           <h1 className="text-4xl font-black font-headline text-primary tracking-tight">Wallet Funding Requests</h1>
-          <p className="text-muted-foreground">Verify manual bank transfers and credit user wallets atomically.</p>
+          <p className="text-muted-foreground">Verify bank transfers and credit user wallets instantly.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-primary/5 border-primary/10">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-lg"><Clock className="h-5 w-5 text-primary" /></div>
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Pending</p>
-                <p className="text-2xl font-black">{requests?.filter(r => r.status === 'pending').length || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50 border-green-100">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-200 rounded-lg"><CheckCircle2 className="h-5 w-5 text-green-600" /></div>
-              <div>
-                <p className="text-xs font-bold uppercase text-green-600/60 tracking-widest">Approved</p>
-                <p className="text-2xl font-black text-green-700">{requests?.filter(r => r.status === 'approved').length || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="border-none shadow-xl ring-1 ring-border">
-        <CardHeader className="border-b bg-muted/30">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by email, name or reference..." 
-              className="pl-10 h-10 bg-background"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <CardHeader className="border-b bg-muted/20">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search by email, name or reference..." 
+                className="pl-10 h-10 bg-background"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm font-bold text-primary">
+              <Clock className="h-4 w-4" />
+              <span>{filteredRequests.length} Pending Requests</span>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead>User / Email</TableHead>
-                  <TableHead>Payment Proof</TableHead>
+                <TableRow className="bg-muted/10">
+                  <TableHead>Customer Details</TableHead>
+                  <TableHead>Payment Info</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Date Submitted</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Submission Date</TableHead>
+                  <TableHead className="text-right">Process</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-20"><Loader2 className="animate-spin h-10 w-10 mx-auto text-primary" /></TableCell></TableRow>
+                {loadingRequests ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-20"><Loader2 className="animate-spin h-10 w-10 mx-auto text-primary" /></TableCell></TableRow>
                 ) : filteredRequests.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground">No matching requests found.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-20 text-muted-foreground">
+                      <div className="space-y-2">
+                        <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto opacity-20" />
+                        <p className="font-bold">Queue is clear! No pending requests.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredRequests.map((req) => (
                   <TableRow key={req.id}>
                     <TableCell>
@@ -199,52 +214,39 @@ export default function WalletFundingRequestsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-[11px] space-y-1">
-                        <p className="font-mono bg-muted p-1 rounded inline-block">Ref: {req.reference}</p>
-                        <p className="text-muted-foreground flex items-center gap-1"><CreditCard className="h-3 w-3" /> {req.paymentMethod}</p>
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="text-[10px] font-mono bg-muted">REF: {req.reference}</Badge>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <CreditCard className="h-3 w-3" /> {req.paymentMethod}
+                        </p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-black text-primary">₦{req.amount.toLocaleString()}</TableCell>
+                    <TableCell className="font-black text-primary text-lg">₦{req.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-[11px] text-muted-foreground">
                       <div className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(req.timestamp).toLocaleString()}</div>
                     </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="secondary"
-                        className={
-                          req.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                          req.status === 'rejected' ? 'bg-red-100 text-red-700' : 
-                          'bg-yellow-100 text-yellow-700'
-                        }
-                      >
-                        {req.status}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="text-right">
-                      {req.status === 'pending' ? (
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            className="h-8 px-2"
-                            disabled={!!processingId}
-                            onClick={() => handleProcessRequest(req.id, 'rejected')}
-                          >
-                            {processingId === req.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="h-8 px-4 font-bold"
-                            disabled={!!processingId}
-                            onClick={() => handleProcessRequest(req.id, 'approved')}
-                          >
-                            {processingId === req.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
-                            Approve
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold">Processed</span>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-9 px-3 text-destructive hover:bg-destructive/10"
+                          disabled={!!processingId}
+                          onClick={() => handleProcessRequest(req.id, 'rejected')}
+                        >
+                          {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-1.5" />}
+                          Reject
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="h-9 px-4 font-bold shadow-lg"
+                          disabled={!!processingId}
+                          onClick={() => handleProcessRequest(req.id, 'approved')}
+                        >
+                          {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+                          Approve
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
