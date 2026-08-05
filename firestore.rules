@@ -6,17 +6,25 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper to get current user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     // Helper to check if user is an admin
-    // This looks up the user's role in the 'users' collection
+    // We use .get() with a default to avoid errors if the field is missing
     function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() && getUserData().get('role', 'user') == 'admin';
     }
 
     // User profiles
     match /users/{userId} {
-      // Users can read/write their own profile; admins can do anything
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users can read/write their own profile
+      // Admins can read any profile. We use a direct check here to avoid recursion.
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        getUserData().get('role', 'user') == 'admin'
+      );
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
@@ -24,17 +32,13 @@ service cloud.firestore {
 
     // Transactions
     match /transactions/{transactionId} {
-      // For single document reads (get) and collection queries (list)
-      // Standard users must match their userId; admins have full access
+      // For list queries, the query MUST include a filter for userId unless the user is an admin
       allow read: if isAuthenticated() && (
         isAdmin() || 
         resource.data.userId == request.auth.uid
       );
       
-      // Users can create their own transactions
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      
-      // Only admins can update or delete
       allow update, delete: if isAdmin();
     }
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -20,7 +19,8 @@ import {
   Edit3,
   PackagePlus,
   Activity,
-  ListOrdered
+  ListOrdered,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';
@@ -69,12 +69,12 @@ export default function AdminDashboard() {
   const { toast } = useToast();
 
   const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
-  const { data: userData, loading: loadingProfile } = useDoc(userDocRef);
+  const { data: userData, loading: loadingProfile, error: profileError } = useDoc(userDocRef);
   
   // Strict admin check - only true if role is explicitly 'admin'
   const isAdmin = useMemo(() => userData?.role === 'admin', [userData]);
 
-  // Memoized Admin Queries - ONLY execute if isAdmin is true
+  // Memoized Admin Queries - ONLY execute if isAdmin is true and profile is loaded
   const usersQuery = useMemo(() => 
     db && isAdmin ? query(collection(db, 'users')) : null, 
     [db, isAdmin]
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
   const { data: users, loading: loadingUsers } = useCollection(usersQuery);
   const { data: purchaseRequests, loading: loadingRequests } = useCollection(requestsQuery);
   const { data: socialLogs, loading: loadingProducts } = useCollection(logsQuery);
-  const { data: allTransactions, loading: loadingAllTx } = useCollection(allTxQuery);
+  const { data: allTransactions, loading: loadingAllTx, error: txError } = useCollection(allTxQuery);
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -235,17 +235,23 @@ export default function AdminDashboard() {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Verifying access credentials...</p>
+        <p className="text-muted-foreground font-bold">Verifying admin credentials...</p>
       </div>
     );
   }
 
   if (!user || (userData && !isAdmin)) {
     return (
-      <div className="p-20 text-center space-y-4">
+      <div className="p-20 text-center space-y-4 max-w-xl mx-auto">
         <ShieldCheck className="h-16 w-16 text-destructive mx-auto" />
         <h2 className="text-2xl font-black">Access Denied</h2>
-        <p className="text-muted-foreground">You do not have permission to view this hub.</p>
+        <p className="text-muted-foreground">This hub is restricted to authorized administrative personnel only.</p>
+        <div className="p-4 bg-muted rounded-xl text-xs text-left space-y-2">
+          <p><strong>Status:</strong> {user ? 'Authenticated' : 'Not Logged In'}</p>
+          <p><strong>User ID:</strong> {user?.uid}</p>
+          <p><strong>Role:</strong> {userData?.role || 'None'}</p>
+          {profileError && <p className="text-destructive font-bold">Profile Error: {profileError.message}</p>}
+        </div>
         <Button onClick={() => window.location.href = '/'}>Return Home</Button>
       </div>
     );
@@ -287,6 +293,16 @@ export default function AdminDashboard() {
             </Button>
           </div>
         </div>
+
+        {txError && txError.message.includes('permission-denied') === false && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-yellow-800">Operational Notice</p>
+              <p className="text-xs text-yellow-700">Some data logs might require additional database indexing. If you see persistent loading, please check the console for index creation links.</p>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="bg-card border p-1 grid grid-cols-5 w-full max-w-4xl">
