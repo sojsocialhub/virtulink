@@ -39,7 +39,6 @@ export default function FundWalletPage() {
   const handleFundRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !user) {
-      console.warn('DEBUG: Submission blocked - Firestore or User not initialized');
       return;
     }
 
@@ -63,12 +62,8 @@ export default function FundWalletPage() {
       createdAt: serverTimestamp()
     };
 
-    console.log('DEBUG: Attempting to create funding request with data:', requestData);
-
-    // Using the recommended non-blocking mutation pattern with contextual error surfacing
     addDoc(collection(db, 'wallet_funding_requests'), requestData)
       .then((docRef) => {
-        console.log('DEBUG: Funding request created successfully. ID:', docRef.id);
         toast({
           title: "Request Submitted!",
           description: "Your payment proof has been sent for verification. Wallet will be credited shortly."
@@ -76,23 +71,14 @@ export default function FundWalletPage() {
         router.push('/dashboard');
       })
       .catch(async (serverError: any) => {
-        console.error('DEBUG: Firestore Create Error:', {
-          message: serverError.message,
-          code: serverError.code,
-          stack: serverError.stack
-        });
-
-        // Create the rich, contextual error for the developer overlay
         const permissionError = new FirestorePermissionError({
           path: 'wallet_funding_requests',
           operation: 'create',
           requestResourceData: requestData,
         } satisfies SecurityRuleContext);
 
-        // Emit the error centrally
         errorEmitter.emit('permission-error', permissionError);
         
-        // Also show a user-friendly toast
         toast({ 
           variant: "destructive", 
           title: "Submission Failed", 

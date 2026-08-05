@@ -7,16 +7,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper to get current user data safely
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     // Helper to check if user is an admin
+    // We use a simple get() to avoid recursive rule checks if possible
     function isAdmin() {
       return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             getUserData().role == 'admin';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // User profiles
@@ -47,7 +42,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                     request.resource.data.userId == request.auth.uid &&
                     request.resource.data.status == 'pending';
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Product collections
