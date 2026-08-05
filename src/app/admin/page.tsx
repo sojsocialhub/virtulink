@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -19,7 +20,9 @@ import {
   PackagePlus,
   Activity,
   ListOrdered,
-  AlertCircle
+  AlertCircle,
+  Banknote,
+  ArrowRight
 } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +38,7 @@ import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, i
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const SAMPLE_PLANS = [
   { name: "MTN 1GB SME", network: "MTN", price: 300, description: "30 Days Validity - SME", type: "data", features: ["30 Days", "SME"] },
@@ -71,13 +75,16 @@ export default function AdminDashboard() {
   
   const isAdmin = useMemo(() => userData?.role === 'admin', [userData]);
 
-  // Stabilized Admin Queries
   const usersQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'users')) : null, 
     [db, isAdmin]
   );
   const requestsQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null, 
+    [db, isAdmin]
+  );
+  const fundingQuery = useMemoFirebase(() => 
+    db && isAdmin ? query(collection(db, 'wallet_funding_requests'), where('status', '==', 'pending'), limit(10)) : null, 
     [db, isAdmin]
   );
   const logsQuery = useMemoFirebase(() => 
@@ -91,8 +98,9 @@ export default function AdminDashboard() {
 
   const { data: users, loading: loadingUsers } = useCollection(usersQuery);
   const { data: purchaseRequests, loading: loadingRequests } = useCollection(requestsQuery);
+  const { data: pendingFunding, loading: loadingFunding } = useCollection(fundingQuery);
   const { data: socialLogs, loading: loadingProducts } = useCollection(logsQuery);
-  const { data: allTransactions, loading: loadingAllTx, error: txError } = useCollection(allTxQuery);
+  const { data: allTransactions, loading: loadingAllTx } = useCollection(allTxQuery);
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
@@ -253,6 +261,11 @@ export default function AdminDashboard() {
           <Button variant="secondary" className="w-full justify-start text-primary">
             <LayoutDashboard className="mr-2 h-4 w-4" /> Main Dashboard
           </Button>
+          <Link href="/admin/funding" className="block w-full">
+            <Button variant="ghost" className="w-full justify-start">
+              <Banknote className="mr-2 h-4 w-4" /> Funding Requests
+            </Button>
+          </Link>
           <Button variant="ghost" className="w-full justify-start">
             <ShoppingBag className="mr-2 h-4 w-4" /> Products & Inventory
           </Button>
@@ -282,11 +295,39 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+           <Card className="border-none ring-1 ring-border shadow-sm">
+             <CardContent className="p-6">
+               <div className="flex justify-between items-start">
+                 <div>
+                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Total Users</p>
+                   <h3 className="text-2xl font-black">{users?.length || 0}</h3>
+                 </div>
+                 <UsersIcon className="h-5 w-5 text-primary opacity-50" />
+               </div>
+             </CardContent>
+           </Card>
+           <Card className="border-none ring-1 ring-border shadow-sm bg-primary/5">
+             <CardContent className="p-6">
+               <div className="flex justify-between items-start">
+                 <div>
+                   <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Pending Funding</p>
+                   <h3 className="text-2xl font-black">{pendingFunding?.length || 0}</h3>
+                 </div>
+                 <Banknote className="h-5 w-5 text-primary" />
+               </div>
+               <Link href="/admin/funding" className="mt-4 inline-flex items-center text-[10px] font-black uppercase text-primary hover:underline">
+                  Manage Funding <ArrowRight className="ml-1 h-3 w-3" />
+               </Link>
+             </CardContent>
+           </Card>
+        </div>
+
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="bg-card border p-1 grid grid-cols-5 w-full max-w-4xl">
             <TabsTrigger value="products">Inventory</TabsTrigger>
             <TabsTrigger value="requests">Orders</TabsTrigger>
-            <TabsTrigger value="credit">Wallet Credit</TabsTrigger>
+            <TabsTrigger value="credit">Instant Credit</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="transactions">Logs</TabsTrigger>
           </TabsList>
@@ -424,9 +465,9 @@ export default function AdminDashboard() {
             <Card className="border-none ring-1 ring-border shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" /> Pending Manual Requests
+                  <Clock className="h-5 w-5 text-primary" /> Pending Order Requests
                 </CardTitle>
-                <CardDescription>Review bank transfer confirmations and approve funding/delivery.</CardDescription>
+                <CardDescription>Review bank transfer confirmations and approve product delivery.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -490,6 +531,7 @@ export default function AdminDashboard() {
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" /> Instant Manual Credit
                 </CardTitle>
+                <CardDescription>Directly top up a user's wallet without a request.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
@@ -613,57 +655,6 @@ export default function AdminDashboard() {
              </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Diagnostics & Navigation Panel */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" /> Admin System Health
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="p-4 border-none ring-1 ring-border bg-card">
-                <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">Firestore Conn</p>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="font-bold text-xs">Active</span>
-                </div>
-              </Card>
-              <Card className="p-4 border-none ring-1 ring-border bg-card">
-                <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">Sociallogs Count</p>
-                <div className="flex items-center gap-2">
-                  <ShoppingBag className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs">{socialLogs?.length || 0} Products</span>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" /> Admin Navigation Index
-            </h3>
-            <Card className="p-4 border-none ring-1 ring-border bg-card">
-              <ul className="text-xs space-y-2">
-                <li className="flex justify-between items-center pb-2 border-b">
-                   <span className="font-bold">Digital Store Mgmt</span>
-                   <Badge variant="outline">/admin?tab=products</Badge>
-                </li>
-                <li className="flex justify-between items-center pb-2 border-b">
-                   <span className="font-bold">Manual Wallet Credit</span>
-                   <Badge variant="outline">/admin?tab=credit</Badge>
-                </li>
-                <li className="flex justify-between items-center pb-2 border-b">
-                   <span className="font-bold">Bank Transfer Approval</span>
-                   <Badge variant="outline">/admin?tab=requests</Badge>
-                </li>
-                <li className="flex justify-between items-center">
-                   <span className="font-bold">Global Audit Logs</span>
-                   <Badge variant="outline">/admin?tab=transactions</Badge>
-                </li>
-              </ul>
-            </Card>
-          </div>
-        </div>
       </main>
     </div>
   );

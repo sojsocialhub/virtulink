@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ADMIN_BANK_DETAILS } from '@/lib/data';
@@ -46,15 +46,16 @@ export default function FundWalletPage() {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'purchase_requests'), {
+      await addDoc(collection(db, 'wallet_funding_requests'), {
         userId: user.uid,
         userEmail: user.email,
-        productName: 'Wallet Funding',
         amount: amountNum,
+        paymentMethod: 'Bank Transfer',
         senderName: formData.senderName,
         reference: formData.reference,
         status: 'pending',
-        date: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        createdAt: serverTimestamp()
       });
 
       toast({
@@ -76,7 +77,6 @@ export default function FundWalletPage() {
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Bank Details */}
         <Card className="border-none shadow-xl ring-1 ring-border overflow-hidden">
           <div className="bg-primary h-2" />
           <CardHeader>
@@ -120,7 +120,6 @@ export default function FundWalletPage() {
           </CardContent>
         </Card>
 
-        {/* Proof Submission */}
         <Card className="border-none shadow-xl ring-1 ring-border">
           <CardHeader>
             <CardTitle className="text-2xl font-black">Submit Payment Proof</CardTitle>
@@ -162,7 +161,7 @@ export default function FundWalletPage() {
                 <div className="relative">
                   <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Optional: Ref number" 
+                    placeholder="Reference number or description" 
                     className="h-12 pl-10"
                     value={formData.reference}
                     onChange={e => setFormData(prev => ({ ...prev, reference: e.target.value }))}

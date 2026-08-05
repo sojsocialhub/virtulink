@@ -39,6 +39,21 @@ export interface PurchaseRequest {
   date: string;
 }
 
+export type WalletFundingRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface WalletFundingRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  amount: number;
+  paymentMethod: string;
+  senderName: string;
+  reference: string;
+  receiptUrl?: string;
+  status: WalletFundingRequestStatus;
+  timestamp: string;
+}
+
 export interface Product {
   id: string;
   name: string;

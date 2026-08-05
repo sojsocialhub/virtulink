@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,19 +13,13 @@ service cloud.firestore {
     }
 
     // Helper to check if user is an admin
-    // We use .get() with a default to avoid errors if the field is missing
     function isAdmin() {
       return isAuthenticated() && getUserData().get('role', 'user') == 'admin';
     }
 
     // User profiles
     match /users/{userId} {
-      // Users can read/write their own profile
-      // Admins can read any profile. We use a direct check here to avoid recursion.
-      allow read: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        getUserData().get('role', 'user') == 'admin'
-      );
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
@@ -32,27 +27,26 @@ service cloud.firestore {
 
     // Transactions
     match /transactions/{transactionId} {
-      // For list queries, the query MUST include a filter for userId unless the user is an admin
-      allow read: if isAuthenticated() && (
-        isAdmin() || 
-        resource.data.userId == request.auth.uid
-      );
-      
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
     // Purchase Requests
     match /purchase_requests/{requestId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() || 
-        resource.data.userId == request.auth.uid
-      );
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Product collections - Read for everyone, Write for admins
+    // Wallet Funding Requests
+    match /wallet_funding_requests/{requestId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Product collections
     match /dataPlans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
