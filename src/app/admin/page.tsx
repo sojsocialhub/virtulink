@@ -20,8 +20,6 @@ import {
   Edit3,
   PackagePlus,
   Activity,
-  AlertTriangle,
-  ExternalLink,
   ListOrdered
 } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -34,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';
@@ -71,10 +69,12 @@ export default function AdminDashboard() {
   const { toast } = useToast();
 
   const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
-  const isAdmin = userData?.role === 'admin';
+  const { data: userData, loading: loadingProfile } = useDoc(userDocRef);
+  
+  // Strict admin check - only proceed if profile is loaded and role is admin
+  const isAdmin = useMemo(() => userData?.role === 'admin', [userData]);
 
-  // Memoized Admin Queries
+  // Memoized Admin Queries - strictly gated by isAdmin
   const usersQuery = useMemo(() => 
     db && isAdmin ? query(collection(db, 'users')) : null, 
     [db, isAdmin]
@@ -231,8 +231,13 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!user) {
-    return <div className="p-20 text-center">Please login to access the admin area.</div>;
+  if (!user || loadingProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground">Verifying access credentials...</p>
+      </div>
+    );
   }
 
   if (userData && !isAdmin) {

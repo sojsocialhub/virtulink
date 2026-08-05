@@ -8,6 +8,7 @@ service cloud.firestore {
     }
 
     // Helper to check if user is an admin
+    // We use a more robust check that handles potential evaluation errors
     function isAdmin() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -16,20 +17,34 @@ service cloud.firestore {
 
     // User profiles
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users can read/write their own profile; admins can do anything
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
     // Transactions
     match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Non-admins can only read/list their own transactions
+      // Admins can read/list everything
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (resource == null && request.query.filters.userId == request.auth.uid)
+      );
+      
+      // Users can create their own transactions
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Only admins can update or delete
       allow update, delete: if isAdmin();
     }
 
     // Purchase Requests
     match /purchase_requests/{requestId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (resource == null && request.query.filters.userId == request.auth.uid)
+      );
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
