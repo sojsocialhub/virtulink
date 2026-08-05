@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc, increment, addDoc, collection, query, where, getDocs, limit, serverTimestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
@@ -27,7 +28,6 @@ export default function PaymentSuccessPage() {
 
     const verifyPayment = async () => {
       try {
-        // 1. Idempotency Check: Check if this reference has already been processed in our records
         const q = query(collection(db, 'transactions'), where('reference', '==', reference), limit(1));
         const existingTx = await getDocs(q);
         
@@ -38,21 +38,17 @@ export default function PaymentSuccessPage() {
           return;
         }
 
-        // 2. Server-side verification with Paystack Secret Key via our internal API
         const response = await fetch(`/api/paystack/verify?reference=${reference}`);
         const data = await response.json();
 
         if (data.status && data.data.status === 'success') {
-          const paidAmount = data.data.amount / 100; // Paystack sends in kobo
+          const paidAmount = data.data.amount / 100;
           setAmount(paidAmount);
 
-          // 3. Atomic Wallet Update
-          // Use non-blocking mutation as per core constraints
           updateDoc(userDocRef, {
             walletBalance: increment(paidAmount)
           });
 
-          // 4. Log Transaction record
           addDoc(collection(db, 'transactions'), {
             userId: user.uid,
             type: 'funding',
@@ -75,7 +71,7 @@ export default function PaymentSuccessPage() {
           toast({ 
             variant: "destructive", 
             title: "Verification Failed", 
-            description: "Paystack could not confirm this transaction." 
+            description: data.message || "Paystack could not confirm this transaction." 
           });
         }
       } catch (error: any) {
@@ -96,7 +92,6 @@ export default function PaymentSuccessPage() {
             {status === 'verifying' && (
               <div className="relative">
                 <Loader2 className="h-20 w-20 animate-spin text-primary" />
-                <PayIcon className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-primary" />
               </div>
             )}
             {status === 'success' && (
@@ -143,14 +138,5 @@ export default function PaymentSuccessPage() {
         )}
       </Card>
     </div>
-  );
-}
-
-function PayIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="20" height="14" x="2" y="5" rx="2"/>
-      <line x1="2" x2="22" y1="10" y2="10"/>
-    </svg>
   );
 }

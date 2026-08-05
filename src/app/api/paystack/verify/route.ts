@@ -1,10 +1,6 @@
 
 import { NextResponse } from 'next/server';
 
-/**
- * Server-side API route to verify Paystack transactions using the Secret Key.
- * This prevents client-side manipulation of transaction outcomes.
- */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const reference = searchParams.get('reference');
