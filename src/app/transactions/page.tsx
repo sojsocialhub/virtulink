@@ -1,21 +1,19 @@
-
 'use client';
 
-import { useMemo } from 'react';
 import { History, Smartphone, PlusCircle, ArrowLeft, Loader2, Search, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { useFirestore, useUser, useCollection } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 
 export default function TransactionsPage() {
   const db = useFirestore();
   const { user } = useUser();
 
-  const transactionsQuery = useMemo(() => {
+  const transactionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, 'transactions'),

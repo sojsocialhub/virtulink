@@ -1,22 +1,20 @@
-
 'use client';
 
-import { useMemo } from 'react';
-import { Wallet, Smartphone, Globe, MessageSquare, History, PlusCircle, Loader2 } from 'lucide-react';
+import { Smartphone, Globe, MessageSquare, History, PlusCircle, Loader2, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useFirestore, useUser, useDoc, useCollection } from '@/firebase';
+import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where, orderBy, limit } from 'firebase/firestore';
 
 export default function Dashboard() {
   const db = useFirestore();
   const { user } = useUser();
 
-  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
   const { data: userData, loading: userLoading } = useDoc(userDocRef);
 
-  const transactionsQuery = useMemo(() => {
+  const transactionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, 'transactions'),

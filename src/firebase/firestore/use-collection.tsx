@@ -12,17 +12,22 @@ import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [state, setState] = useState<{
+    data: (T & { id: string })[];
+    loading: boolean;
+    error: Error | null;
+  }>({
+    data: [],
+    loading: !!query,
+    error: null,
+  });
 
   useEffect(() => {
     if (!query) {
-      setLoading(false);
+      setState(prev => (prev.loading || prev.data.length > 0 ? { data: [], loading: false, error: null } : prev));
       return;
     }
 
-    setLoading(true);
     const unsubscribe = onSnapshot(
       query,
       (snapshot: QuerySnapshot<T>) => {
@@ -30,12 +35,9 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
           ...doc.data(),
           id: doc.id,
         } as T & { id: string }));
-        setData(items);
-        setLoading(false);
-        setError(null);
+        setState({ data: items, loading: false, error: null });
       },
-      async (err: FirestoreError) => {
-        // Only report as permission error if the code matches
+      (err: FirestoreError) => {
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
             path: (query as any)._query?.path?.toString() || 'unknown',
@@ -43,16 +45,14 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
           });
           errorEmitter.emit('permission-error', permissionError);
         } else {
-          // Log other errors normally (e.g. missing indexes)
           console.error('Firestore Collection Error:', err);
         }
-        setError(err);
-        setLoading(false);
+        setState(prev => ({ ...prev, loading: false, error: err }));
       }
     );
 
     return () => unsubscribe();
   }, [query]);
 
-  return { data, loading, error };
+  return state;
 }

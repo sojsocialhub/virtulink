@@ -11,7 +11,6 @@ import {
   Loader2, 
   Search, 
   CreditCard, 
-  History, 
   Clock, 
   CheckCircle2, 
   ShieldCheck, 
@@ -31,8 +30,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
+import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PurchaseRequestStatus } from '@/lib/types';
 import Image from 'next/image';
@@ -50,7 +49,6 @@ export default function AdminDashboard() {
   const [targetUserId, setTargetUserId] = useState<string>('');
   const [isCrediting, setIsCrediting] = useState(false);
   const [userSearch, setUserSearch] = useState('');
-  const [isUpdatingRequest, setIsUpdatingRequest] = useState<string | null>(null);
   
   // Product state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -68,26 +66,25 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const { toast } = useToast();
 
-  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
-  const { data: userData, loading: loadingProfile, error: profileError } = useDoc(userDocRef);
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const { data: userData, loading: loadingProfile } = useDoc(userDocRef);
   
-  // Strict admin check - only true if role is explicitly 'admin'
   const isAdmin = useMemo(() => userData?.role === 'admin', [userData]);
 
-  // Memoized Admin Queries - ONLY execute if isAdmin is true and profile is loaded
-  const usersQuery = useMemo(() => 
+  // Stabilized Admin Queries
+  const usersQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'users')) : null, 
     [db, isAdmin]
   );
-  const requestsQuery = useMemo(() => 
+  const requestsQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'purchase_requests'), orderBy('date', 'desc')) : null, 
     [db, isAdmin]
   );
-  const logsQuery = useMemo(() => 
+  const logsQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'Sociallogs')) : null, 
     [db, isAdmin]
   );
-  const allTxQuery = useMemo(() => 
+  const allTxQuery = useMemoFirebase(() => 
     db && isAdmin ? query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(50)) : null, 
     [db, isAdmin]
   );
@@ -140,15 +137,12 @@ export default function AdminDashboard() {
 
   const handleUpdateRequestStatus = async (requestId: string, newStatus: PurchaseRequestStatus) => {
     if (!db) return;
-    setIsUpdatingRequest(requestId);
     try {
       const requestRef = doc(db, 'purchase_requests', requestId);
       await updateDoc(requestRef, { status: newStatus });
       toast({ title: "Status Updated", description: `Request marked as ${newStatus}.` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Update Failed", description: error.message });
-    } finally {
-      setIsUpdatingRequest(null);
     }
   };
 
@@ -246,12 +240,6 @@ export default function AdminDashboard() {
         <ShieldCheck className="h-16 w-16 text-destructive mx-auto" />
         <h2 className="text-2xl font-black">Access Denied</h2>
         <p className="text-muted-foreground">This hub is restricted to authorized administrative personnel only.</p>
-        <div className="p-4 bg-muted rounded-xl text-xs text-left space-y-2">
-          <p><strong>Status:</strong> {user ? 'Authenticated' : 'Not Logged In'}</p>
-          <p><strong>User ID:</strong> {user?.uid}</p>
-          <p><strong>Role:</strong> {userData?.role || 'None'}</p>
-          {profileError && <p className="text-destructive font-bold">Profile Error: {profileError.message}</p>}
-        </div>
         <Button onClick={() => window.location.href = '/'}>Return Home</Button>
       </div>
     );
@@ -293,16 +281,6 @@ export default function AdminDashboard() {
             </Button>
           </div>
         </div>
-
-        {txError && txError.message.includes('permission-denied') === false && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-yellow-800">Operational Notice</p>
-              <p className="text-xs text-yellow-700">Some data logs might require additional database indexing. If you see persistent loading, please check the console for index creation links.</p>
-            </div>
-          </div>
-        )}
 
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="bg-card border p-1 grid grid-cols-5 w-full max-w-4xl">
