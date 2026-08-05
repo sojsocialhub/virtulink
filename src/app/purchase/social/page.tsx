@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -7,7 +6,7 @@ import { MessageSquare, ChevronLeft, ShoppingBag, Loader2, Info, CreditCard, Cop
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useCollection } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -33,9 +32,12 @@ export default function SocialLogsPage() {
     reference: ''
   });
 
-  const { data: rawLogs, loading: loadingLogs } = useCollection(
-    db ? query(collection(db, 'Sociallogs')) : null
-  );
+  const logsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'Sociallogs'));
+  }, [db]);
+
+  const { data: rawLogs, loading: loadingLogs } = useCollection(logsQuery);
 
   const sanitizeObject = (obj: any): any => {
     if (!obj || typeof obj !== 'object' || obj instanceof Date) return obj;

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useCollection, useDoc } from '@/firebase';
+import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -25,13 +24,16 @@ export default function DataPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
   const { data: userData } = useDoc(userDocRef);
   const walletBalance = userData?.walletBalance || 0;
 
-  const { data: plans, loading: loadingPlans } = useCollection(
-    db ? query(collection(db, 'dataPlans')) : null
-  );
+  const plansQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'dataPlans'));
+  }, [db]);
+
+  const { data: plans, loading: loadingPlans } = useCollection(plansQuery);
 
   const handlePurchase = async () => {
     if (!db || !user || !selectedPlan || !phoneNumber || !userDocRef) return;
@@ -47,13 +49,11 @@ export default function DataPage() {
 
     setLoading(true);
     try {
-      // 1. Deduct from wallet
-      await updateDoc(userDocRef, {
+      updateDoc(userDocRef, {
         walletBalance: increment(-selectedPlan.price)
       });
 
-      // 2. Log Transaction
-      await addDoc(collection(db, 'transactions'), {
+      addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'data',
         service: selectedPlan.name,
@@ -76,12 +76,6 @@ export default function DataPage() {
         requestResourceData: { userId: user.uid, amount: selectedPlan.price }
       });
       errorEmitter.emit('permission-error', error);
-      
-      toast({ 
-        variant: "destructive", 
-        title: "Transaction Failed", 
-        description: "Could not process purchase. Please try again." 
-      });
     } finally {
       setLoading(false);
     }

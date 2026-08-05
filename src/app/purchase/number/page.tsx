@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +6,7 @@ import { Smartphone, ChevronLeft, CreditCard, Loader2, Info, Hash } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useCollection } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -19,9 +18,12 @@ export default function VirtualNumbersPage() {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
 
-  const { data: numbers, loading: loadingNumbers } = useCollection(
-    db ? query(collection(db, 'virtualNumbers')) : null
-  );
+  const numbersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'virtualNumbers'));
+  }, [db]);
+
+  const { data: numbers, loading: loadingNumbers } = useCollection(numbersQuery);
 
   const walletBalance = 5250;
 
@@ -35,7 +37,7 @@ export default function VirtualNumbersPage() {
 
     setLoading(true);
     try {
-      await addDoc(collection(db, 'transactions'), {
+      addDoc(collection(db, 'transactions'), {
         userId: user.uid,
         type: 'number',
         service: item.name,
