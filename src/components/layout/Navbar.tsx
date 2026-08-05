@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import { User, Menu, X, Wallet, LayoutDashboard, History, ShieldAlert, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { User, Menu, X, Wallet, LayoutDashboard, History, ShieldAlert, LogIn, UserPlus, LogOut, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useDoc, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -110,9 +110,14 @@ export default function Navbar() {
                   <History className="h-5 w-5" /> History
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                    <ShieldAlert className="h-5 w-5" /> Admin Hub
-                  </Link>
+                  <>
+                    <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg" onClick={() => setIsMenuOpen(false)}>
+                      <ShieldAlert className="h-5 w-5" /> Admin Overview
+                    </Link>
+                    <Link href="/admin/funding" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary text-white rounded-lg" onClick={() => setIsMenuOpen(false)}>
+                      <Banknote className="h-5 w-5" /> Funding Requests
+                    </Link>
+                  </>
                 )}
                 <Link href="/profile" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
                   <User className="h-5 w-5" /> Profile (₦{userData?.walletBalance?.toLocaleString() || '0'})
