@@ -8,10 +8,9 @@ service cloud.firestore {
     }
 
     // Helper to check if user is an admin
-    // We use a more robust check that handles potential evaluation errors
+    // This looks up the user's role in the 'users' collection
     function isAdmin() {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -23,12 +22,11 @@ service cloud.firestore {
 
     // Transactions
     match /transactions/{transactionId} {
-      // Non-admins can only read/list their own transactions
-      // Admins can read/list everything
+      // For single document reads (get) and collection queries (list)
+      // Standard users must match their userId; admins have full access
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        (resource != null && resource.data.userId == request.auth.uid) ||
-        (resource == null && request.query.filters.userId == request.auth.uid)
+        resource.data.userId == request.auth.uid
       );
       
       // Users can create their own transactions
@@ -42,14 +40,13 @@ service cloud.firestore {
     match /purchase_requests/{requestId} {
       allow read: if isAuthenticated() && (
         isAdmin() || 
-        (resource != null && resource.data.userId == request.auth.uid) ||
-        (resource == null && request.query.filters.userId == request.auth.uid)
+        resource.data.userId == request.auth.uid
       );
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Product collections
+    // Product collections - Read for everyone, Write for admins
     match /dataPlans/{planId} {
       allow read: if true;
       allow write: if isAdmin();

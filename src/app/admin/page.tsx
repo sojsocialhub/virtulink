@@ -71,10 +71,10 @@ export default function AdminDashboard() {
   const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
   const { data: userData, loading: loadingProfile } = useDoc(userDocRef);
   
-  // Strict admin check - only proceed if profile is loaded and role is admin
+  // Strict admin check - only true if role is explicitly 'admin'
   const isAdmin = useMemo(() => userData?.role === 'admin', [userData]);
 
-  // Memoized Admin Queries - strictly gated by isAdmin
+  // Memoized Admin Queries - ONLY execute if isAdmin is true
   const usersQuery = useMemo(() => 
     db && isAdmin ? query(collection(db, 'users')) : null, 
     [db, isAdmin]
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!user || loadingProfile) {
+  if (loadingProfile) {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -240,7 +240,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (userData && !isAdmin) {
+  if (!user || (userData && !isAdmin)) {
     return (
       <div className="p-20 text-center space-y-4">
         <ShieldCheck className="h-16 w-16 text-destructive mx-auto" />
