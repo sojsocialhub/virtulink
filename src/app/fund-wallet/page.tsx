@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -125,9 +124,14 @@ export default function FundWalletPage() {
                   Pay ₦{Number(amount).toLocaleString() || '0'} Now
                 </Button>
 
-                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <ShieldCheck className="h-4 w-4 text-green-600" />
-                  Secured by Paystack
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 text-green-600" />
+                    Secured by Paystack
+                  </div>
+                  <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">
+                    {Boolean(process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) ? "Key Loaded" : "Key Missing"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
