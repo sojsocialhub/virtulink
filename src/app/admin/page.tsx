@@ -317,7 +317,7 @@ export default function AdminDashboard() {
                  <Banknote className="h-5 w-5 text-primary" />
                </div>
                <Link href="/admin/funding" className="mt-4 inline-flex items-center text-[10px] font-black uppercase text-primary hover:underline">
-                  Manage Funding <ArrowRight className="ml-1 h-3 w-3" />
+                  Manage Funding <ArrowRight className="ml-1 h-3 v-3" />
                </Link>
              </CardContent>
            </Card>

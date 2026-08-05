@@ -33,8 +33,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { WalletFundingRequest } from '@/lib/types';
 import Link from 'next/link';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function WalletFundingRequestsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,13 +112,6 @@ export default function WalletFundingRequestsPage() {
         description: status === 'approved' ? `Wallet credited with ₦${requestData.amount.toLocaleString()}` : "The request was declined."
       });
     } catch (error: any) {
-      const permissionError = new FirestorePermissionError({
-        path: `wallet_funding_requests/${requestId}`,
-        operation: 'update',
-        requestResourceData: { status }
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      
       toast({ 
         variant: "destructive", 
         title: "Action Failed", 
@@ -145,7 +136,7 @@ export default function WalletFundingRequestsPage() {
       <div className="container mx-auto px-4 py-20 text-center space-y-4">
         <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
         <h2 className="text-3xl font-black">Unauthorized Access</h2>
-        <p className="text-muted-foreground">This area is reserved for S.O.J VTU administrators.</p>
+        <p className="text-muted-foreground">This area is reserved for administrators.</p>
         <Link href="/dashboard"><Button>Back to Dashboard</Button></Link>
       </div>
     );
