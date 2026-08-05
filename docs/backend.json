@@ -46,6 +46,22 @@
       },
       "required": ["userId", "amount", "status", "date"]
     },
+    "WalletFundingRequest": {
+      "title": "Wallet Funding Request",
+      "description": "User request to fund wallet via manual bank transfer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "senderName": { "type": "string" },
+        "reference": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "status"]
+    },
     "Product": {
       "title": "Product Plan",
       "description": "A purchasable item or plan (Data, Number, or Social Log)",
@@ -77,6 +93,10 @@
     "/purchase_requests/{requestId}": {
       "schema": { "$ref": "#/backend/entities/PurchaseRequest" },
       "description": "Manual purchase approval queue"
+    },
+    "/wallet_funding_requests/{requestId}": {
+      "schema": { "$ref": "#/backend/entities/WalletFundingRequest" },
+      "description": "Manual wallet funding approval queue"
     },
     "/dataPlans/{planId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Data bundles" },
     "/virtualNumbers/{numberId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Virtual numbers" },

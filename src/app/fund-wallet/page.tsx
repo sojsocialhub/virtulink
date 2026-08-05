@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ADMIN_BANK_DETAILS } from '@/lib/data';
 import { Label } from '@/components/ui/label';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export default function FundWalletPage() {
   const { toast } = useToast();
@@ -36,7 +38,10 @@ export default function FundWalletPage() {
 
   const handleFundRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !user) return;
+    if (!db || !user) {
+      console.warn('DEBUG: Submission blocked - Firestore or User not initialized');
+      return;
+    }
 
     const amountNum = Number(formData.amount);
     if (!formData.amount || isNaN(amountNum) || amountNum < 100) {
@@ -45,28 +50,57 @@ export default function FundWalletPage() {
     }
 
     setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, 'wallet_funding_requests'), {
-        userId: user.uid,
-        userEmail: user.email,
-        amount: amountNum,
-        paymentMethod: 'Bank Transfer',
-        senderName: formData.senderName,
-        reference: formData.reference,
-        status: 'pending',
-        timestamp: new Date().toISOString(),
-        createdAt: serverTimestamp()
-      });
+    
+    const requestData = {
+      userId: user.uid,
+      userEmail: user.email || 'anonymous',
+      amount: amountNum,
+      paymentMethod: 'Bank Transfer',
+      senderName: formData.senderName,
+      reference: formData.reference,
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    };
 
-      toast({
-        title: "Request Submitted!",
-        description: "Your payment proof has been sent for verification. Wallet will be credited shortly."
+    console.log('DEBUG: Attempting to create funding request with data:', requestData);
+
+    // Using the recommended non-blocking mutation pattern with contextual error surfacing
+    addDoc(collection(db, 'wallet_funding_requests'), requestData)
+      .then((docRef) => {
+        console.log('DEBUG: Funding request created successfully. ID:', docRef.id);
+        toast({
+          title: "Request Submitted!",
+          description: "Your payment proof has been sent for verification. Wallet will be credited shortly."
+        });
+        router.push('/dashboard');
+      })
+      .catch(async (serverError: any) => {
+        console.error('DEBUG: Firestore Create Error:', {
+          message: serverError.message,
+          code: serverError.code,
+          stack: serverError.stack
+        });
+
+        // Create the rich, contextual error for the developer overlay
+        const permissionError = new FirestorePermissionError({
+          path: 'wallet_funding_requests',
+          operation: 'create',
+          requestResourceData: requestData,
+        } satisfies SecurityRuleContext);
+
+        // Emit the error centrally
+        errorEmitter.emit('permission-error', permissionError);
+        
+        // Also show a user-friendly toast
+        toast({ 
+          variant: "destructive", 
+          title: "Submission Failed", 
+          description: serverError.message || "Could not save your request. Please try again." 
+        });
+        
+        setIsSubmitting(false);
       });
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Submission Failed", description: error.message });
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -176,7 +210,7 @@ export default function FundWalletPage() {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying...</>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting...</>
                 ) : (
                   <><Upload className="mr-2 h-5 w-5" /> Submit for Verification</>
                 )}
