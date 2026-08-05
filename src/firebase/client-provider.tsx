@@ -16,12 +16,23 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   } | null>(null);
 
   useEffect(() => {
-    const { firebaseApp, firestore, auth } = initializeFirebase();
-    setInstances({ firebaseApp, firestore, auth });
+    // initializeFirebase is now robust against multiple calls
+    const results = initializeFirebase();
+    if (results.firebaseApp) {
+      setInstances(results as { firebaseApp: FirebaseApp; firestore: Firestore; auth: Auth });
+    }
   }, []);
 
+  // Show a clean loader while Firebase initializes to prevent race conditions in components
   if (!instances) {
-    return null; // Or a loading spinner
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground font-medium animate-pulse">Initializing Security Hub...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
