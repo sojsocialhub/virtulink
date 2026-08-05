@@ -54,7 +54,6 @@ export default function AdminDashboard() {
   const [isCrediting, setIsCrediting] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   
-  // Product state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -247,7 +246,7 @@ export default function AdminDashboard() {
       <div className="p-20 text-center space-y-4 max-w-xl mx-auto">
         <ShieldCheck className="h-16 w-16 text-destructive mx-auto" />
         <h2 className="text-2xl font-black">Access Denied</h2>
-        <p className="text-muted-foreground">This hub is restricted to authorized administrative personnel only.</p>
+        <p className="text-muted-foreground">This hub is restricted to authorized administrative personnel only. Please ensure your account has the "admin" role.</p>
         <Button onClick={() => window.location.href = '/'}>Return Home</Button>
       </div>
     );
@@ -317,14 +316,14 @@ export default function AdminDashboard() {
                  <Banknote className="h-5 w-5 text-primary" />
                </div>
                <Link href="/admin/funding" className="mt-4 inline-flex items-center text-[10px] font-black uppercase text-primary hover:underline">
-                  Manage Funding <ArrowRight className="ml-1 h-3 v-3" />
+                  Manage Funding <ArrowRight className="ml-1 h-3 w-3" />
                </Link>
              </CardContent>
            </Card>
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="bg-card border p-1 grid grid-cols-5 w-full max-w-4xl">
+          <TabsList className="bg-card border p-1 flex w-full max-w-4xl overflow-x-auto">
             <TabsTrigger value="products">Inventory</TabsTrigger>
             <TabsTrigger value="requests">Orders</TabsTrigger>
             <TabsTrigger value="credit">Instant Credit</TabsTrigger>
