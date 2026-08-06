@@ -28,6 +28,7 @@ export default function PaymentSuccessPage() {
 
     const verifyPayment = async () => {
       try {
+        // 1. Check if this reference has already been credited (idempotency)
         const q = query(collection(db, 'transactions'), where('reference', '==', reference), limit(1));
         const existingTx = await getDocs(q);
         
@@ -38,18 +39,21 @@ export default function PaymentSuccessPage() {
           return;
         }
 
+        // 2. Verify with server-side API
         const response = await fetch(`/api/paystack/verify?reference=${reference}`);
         const data = await response.json();
 
         if (data.status && data.data.status === 'success') {
-          const paidAmount = data.data.amount / 100;
+          const paidAmount = data.data.amount / 100; // Paystack returns kobo
           setAmount(paidAmount);
 
-          updateDoc(userDocRef, {
+          // 3. Increment balance
+          await updateDoc(userDocRef, {
             walletBalance: increment(paidAmount)
           });
 
-          addDoc(collection(db, 'transactions'), {
+          // 4. Log transaction
+          await addDoc(collection(db, 'transactions'), {
             userId: user.uid,
             type: 'funding',
             amount: paidAmount,

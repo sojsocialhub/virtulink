@@ -1,49 +1,32 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
   Users as UsersIcon, 
-  Settings, 
   Plus, 
-  Database, 
   Loader2, 
-  Search, 
-  CreditCard, 
-  Clock, 
-  CheckCircle2, 
   ShieldCheck, 
-  Trash2, 
   Edit3,
   PackagePlus,
-  Activity,
-  ListOrdered,
-  AlertCircle,
-  Banknote,
   ArrowRight,
-  Menu,
-  Smartphone
+  Banknote
 } from 'lucide-react';
-import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, getDocs, query, limit, doc, updateDoc, deleteDoc, increment, orderBy, serverTimestamp, where } from 'firebase/firestore';
+import { collection, addDoc, query, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const [isSeeding, setIsSeeding] = useState(false);
-  const [userSearch, setUserSearch] = useState('');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -69,7 +52,7 @@ export default function AdminDashboard() {
 
   const { data: users } = useCollection(usersQuery);
   const { data: pendingFunding } = useCollection(fundingQuery);
-  const { data: socialLogs, loading: loadingProducts } = useCollection(logsQuery);
+  const { data: socialLogs } = useCollection(logsQuery);
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +93,9 @@ export default function AdminDashboard() {
         <div className="p-6 font-headline font-bold text-xl text-primary border-b mb-4 text-center">Admin Hub</div>
         <nav className="px-4 space-y-2">
           <Button variant="secondary" className="w-full justify-start text-primary"><LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard</Button>
-          <Link href="/admin/funding" className="block w-full"><Button variant="ghost" className="w-full justify-start"><Banknote className="mr-2 h-4 w-4" /> Funding Queue</Button></Link>
+          <Link href="/admin/funding" className="block w-full">
+            <Button variant="ghost" className="w-full justify-start"><Banknote className="mr-2 h-4 w-4" /> Funding Queue</Button>
+          </Link>
           <Button variant="ghost" className="w-full justify-start"><ShoppingBag className="mr-2 h-4 w-4" /> Inventory</Button>
           <Button variant="ghost" className="w-full justify-start"><UsersIcon className="mr-2 h-4 w-4" /> Customers</Button>
         </nav>
@@ -132,7 +117,20 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
            <Card className="border-none ring-1 ring-border shadow-sm"><CardContent className="p-6"><div className="flex justify-between items-start"><div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Total Users</p><h3 className="text-2xl font-black">{users?.length || 0}</h3></div><UsersIcon className="h-5 w-5 text-primary opacity-50" /></div></CardContent></Card>
-           <Card className="border-none ring-1 ring-border shadow-sm bg-primary/5"><CardContent className="p-6"><div className="flex justify-between items-start"><div><p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Pending Funding</p><h3 className="text-2xl font-black">{pendingFunding?.length || 0}</h3></div><Banknote className="h-5 w-5 text-primary" /></div><Link href="/admin/funding" className="mt-4 inline-flex items-center text-[10px] font-black uppercase text-primary hover:underline">Manage Funding <ArrowRight className="ml-1 h-3 w-3" /></Link></CardContent></Card>
+           <Card className="border-none ring-1 ring-border shadow-sm bg-primary/5">
+             <CardContent className="p-6">
+               <div className="flex justify-between items-start">
+                 <div>
+                   <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Pending Funding</p>
+                   <h3 className="text-2xl font-black">{pendingFunding?.length || 0}</h3>
+                 </div>
+                 <Banknote className="h-5 w-5 text-primary" />
+               </div>
+               <Link href="/admin/funding" className="mt-4 inline-flex items-center text-[10px] font-black uppercase text-primary hover:underline">
+                 Manage Funding <ArrowRight className="ml-1 h-3 w-3" />
+               </Link>
+             </CardContent>
+           </Card>
         </div>
 
         <Tabs defaultValue="products" className="space-y-6">
