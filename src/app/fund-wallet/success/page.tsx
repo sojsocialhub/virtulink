@@ -81,6 +81,11 @@ export default function PaymentSuccessPage() {
         }
       } catch (error: any) {
         console.error('Payment Verification Error:', error);
+        toast({
+          variant: "destructive",
+          title: "Payment Processing Error",
+          description: error?.message || "Firebase could not complete the wallet update."
+        });
         setStatus('error');
       }
     };
