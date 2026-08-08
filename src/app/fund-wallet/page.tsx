@@ -22,7 +22,7 @@ export default function FundWalletPage() {
   const [amount, setAmount] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
+  const publicKey = 'pk_live_b92ccf1a80ee7391758194f36a77889be87696ad';
   
   const config = {
     reference: (new Date()).getTime().toString(),
