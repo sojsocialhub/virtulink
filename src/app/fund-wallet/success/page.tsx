@@ -30,7 +30,7 @@ export default function PaymentSuccessPage() {
     const verifyPayment = async () => {
       try {
         // 1. Check if this reference has already been credited (idempotency)
-        const q = query(collection(db, 'transactions'), where('reference', '==', reference), limit(1));
+        const q = query(collection(db, 'transactions'), where('reference', '==', reference), where('userId', '==', user.uid), limit(1));
         const existingTx = await getDocs(q);
         
         if (!existingTx.empty) {
