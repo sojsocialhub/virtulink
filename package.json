@@ -9,7 +9,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node -e \"const fs=require('fs'); const p='node_modules/genkit/package.json'; if(fs.existsSync(p)){const j=JSON.parse(fs.readFileSync(p,'utf8')); if(j.exports?.['.']?.import==='./lib/index.mjs'){j.exports['.'].import='./lib/index.js'; fs.writeFileSync(p,JSON.stringify(j,null,2)+'\\n')}}\""
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
@@ -41,7 +42,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
-    "firebase-admin": "^14.2.0",
+    "firebase-admin": "^13.5.0",
     "genkit": "^1.28.0",
     "lucide-react": "^0.475.0",
     "next": "15.5.9",
@@ -70,5 +71,8 @@
       "react": "$react",
       "react-dom": "$react-dom"
     }
+  },
+  "allowScripts": {
+    "@firebase/util@1.12.0": true
   }
 }
