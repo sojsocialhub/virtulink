@@ -17,7 +17,7 @@ export default function PaymentSuccessPage() {
   const reference = searchParams.get('reference');
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [amount, setAmount] = useState(0);
@@ -25,7 +25,7 @@ export default function PaymentSuccessPage() {
   const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
 
   useEffect(() => {
-    if (!reference || !user || !db || !userDocRef) return;
+    if (authLoading || !reference || !user || !db || !userDocRef) return;
 
     const verifyPayment = async () => {
       try {
@@ -91,7 +91,7 @@ export default function PaymentSuccessPage() {
     };
 
     verifyPayment();
-  }, [reference, user, db, userDocRef, toast]);
+  }, [reference, user, db, userDocRef, toast, authLoading]);
 
   return (
     <div className="container mx-auto px-4 py-20 flex items-center justify-center min-h-[60vh]">
