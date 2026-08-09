@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export async function GET(request: Request) {
@@ -32,10 +32,10 @@ export async function GET(request: Request) {
 
   try {
     const idToken = authorization.substring('Bearer '.length);
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const decodedToken = await getAdminAuth().verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
-    const existingTx = await adminDb
+    const existingTx = await getAdminDb()
       .collection('transactions')
       .where('reference', '==', reference)
       .where('userId', '==', userId)
@@ -106,10 +106,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const userRef = adminDb.collection('users').doc(userId);
-    const transactionRef = adminDb.collection('transactions').doc();
+    const userRef = getAdminDb().collection('users').doc(userId);
+    const transactionRef = getAdminDb().collection('transactions').doc();
 
-    await adminDb.runTransaction(async (transaction) => {
+    await getAdminDb().runTransaction(async (transaction) => {
       const userSnap = await transaction.get(userRef);
 
       if (!userSnap.exists) {
