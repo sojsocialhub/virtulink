@@ -25,7 +25,7 @@ export default function FundWalletPage() {
   const publicKey = 'pk_live_b92ccf1a80ee7391758194f36a77889be87696ad';
   
   const config = {
-    reference: (new Date()).getTime().toString(),
+    reference: `VL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     email: user?.email || '',
     amount: (Number(amount) || 0) * 100, // Paystack expects amount in kobo
     publicKey: publicKey,
