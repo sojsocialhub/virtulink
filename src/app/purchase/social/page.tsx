@@ -190,49 +190,61 @@ export default function SocialLogsPage() {
           const reference = response?.reference;
 
           if (!reference) {
-            throw new Error('Paystack did not return a transaction reference.');
+            throw new Error("Paystack did not return a transaction reference.");
           }
 
-          if (!db) {
-            throw new Error('Database connection is unavailable.');
+          if (!user) {
+            throw new Error("Customer account could not be identified.");
           }
 
-          await addDoc(collection(db, 'purchase_requests'), {
-            userId: user.uid,
-            userEmail: user.email,
-            productName: selectedProduct.name || 'Social Account',
-            productId: selectedProduct.id,
-            amount,
-            paymentMethod: 'Paystack',
-            reference,
-            status: 'paid',
-            date: new Date().toISOString()
+          const idToken = await user.getIdToken();
+
+          const deliveryResponse = await fetch("/api/social-log/deliver", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              productId: selectedProduct?.id,
+              productName: selectedProduct?.name || "Social Account",
+              amount: getPrice(selectedProduct),
+              reference,
+            }),
           });
 
+          const deliveryData = await deliveryResponse.json();
+
+          if (!deliveryResponse.ok || !deliveryData.status) {
+            throw new Error(
+              deliveryData.message ||
+                "Payment was successful, but the Social Log could not be delivered."
+            );
+          }
+
           toast({
-            title: 'Payment Successful!',
+            title: "Purchase Successful! 🎉",
             description:
-              'Your payment was received. Your Social Log order has been submitted.'
+              "Your Social Log has been purchased and delivered to your account.",
           });
 
           setIsModalOpen(false);
           setIsProcessing(false);
-          router.push('/dashboard');
+          router.push("/dashboard");
         } catch (error: any) {
-          console.error('Social Log Paystack order error:', error);
+          console.error("Social Log Paystack delivery error:", error);
 
           toast({
-            variant: 'destructive',
-            title: 'Order Processing Error',
+            variant: "destructive",
+            title: "Delivery Error",
             description:
               error?.message ||
-              'Payment succeeded, but we could not create your order. Please contact support with your Paystack reference.'
+              "Payment was received, but we could not deliver your Social Log. Please contact support with your Paystack reference.",
           });
 
           setIsProcessing(false);
         }
       },
-
       onClose: () => {
         setIsProcessing(false);
 
