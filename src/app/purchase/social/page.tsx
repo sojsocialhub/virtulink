@@ -59,6 +59,7 @@ export default function SocialLogsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paystack');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [deliveredAccount, setDeliveredAccount] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -228,9 +229,10 @@ export default function SocialLogsPage() {
               "Your Social Log has been purchased and delivered to your account.",
           });
 
+          setDeliveredAccount(deliveryData.account);
           setIsModalOpen(false);
           setIsProcessing(false);
-          router.push("/dashboard");
+          // Stay on this page to show the delivered account.
         } catch (error: any) {
           console.error("Social Log Paystack delivery error:", error);
 
@@ -324,6 +326,63 @@ export default function SocialLogsPage() {
           Premium accounts with secure Paystack or manual bank-transfer payment.
         </p>
       </header>
+
+      {deliveredAccount && (
+        <Card className="mb-8 border-2 border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-2xl font-black text-green-700">
+              🎉 Purchase Successful
+            </CardTitle>
+            <CardDescription>
+              Your Social Log has been delivered successfully.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Category</Label>
+              <div className="mt-1 rounded-lg border bg-white p-3 font-bold">
+                {deliveredAccount.extraDetails || "Social Account"}
+              </div>
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border bg-white p-3">
+                <span className="break-all">{deliveredAccount.email || "N/A"}</span>
+                {deliveredAccount.email && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(deliveredAccount.email, "E-mail")}>
+                    <Copy className="mr-1 h-4 w-4" />
+                    Copy
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label>Account</Label>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border bg-white p-3">
+                <span className="break-all">{deliveredAccount.username || "N/A"}</span>
+                {deliveredAccount.username && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(deliveredAccount.username, "Account")}>
+                    <Copy className="mr-1 h-4 w-4" />
+                    Copy
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label>Password</Label>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border bg-white p-3">
+                <span className="break-all">{deliveredAccount.password || "N/A"}</span>
+                {deliveredAccount.password && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(deliveredAccount.password, "Password")}>
+                    <Copy className="mr-1 h-4 w-4" />
+                    Copy
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {loadingLogs ? (
         <div className="flex justify-center p-20">
