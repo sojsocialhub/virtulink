@@ -116,8 +116,7 @@ export default function SocialLogsPage() {
   };
 
   const publicKey =
-    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
-    'pk_live_b92ccf1a80ee7391758194f36a77889be87696ad';
+    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
 
   const paystackConfig = {
     reference: `VL-SOCIAL-${Date.now()}-${Math.random()
