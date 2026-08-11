@@ -172,7 +172,7 @@ export default function AdminDashboard() {
                 <TableHeader><TableRow className="bg-muted/30"><TableHead>Product</TableHead><TableHead>Price</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {socialLogs?.map((prod: any) => (
-                    <TableRow key={prod.id} className="hover:bg-muted/20"><TableCell className="font-bold">{prod.name}</TableCell><TableCell className="font-mono">₦{prod.price.toLocaleString()}</TableCell><TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => { setEditingProduct(prod); setProductForm({ name: prod.name, price: String(prod.price), description: prod.description || '', imageUrl: prod.imageUrl || '', features: prod.features?.join(', ') || '' }); setIsProductModalOpen(true); }}><Edit3 className="h-4 w-4 text-primary" /></Button></TableCell></TableRow>
+                    <TableRow key={prod.id} className="hover:bg-muted/20"><TableCell className="font-bold">{prod.name}</TableCell><TableCell className="font-mono">₦{Number(prod.price || 0).toLocaleString()}</TableCell><TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => { setEditingProduct(prod); setProductForm({ name: prod.name, price: String(prod.price), description: prod.description || '', imageUrl: prod.imageUrl || '', features: prod.features?.join(', ') || '' }); setIsProductModalOpen(true); }}><Edit3 className="h-4 w-4 text-primary" /></Button></TableCell></TableRow>
                   ))}
                   {socialLogs?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground italic">No products in inventory.</TableCell></TableRow>}
                 </TableBody>
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
                 <TableHeader><TableRow className="bg-muted/30"><TableHead>Customer</TableHead><TableHead>Wallet</TableHead><TableHead>Joined</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {users?.map((u: any) => (
-                    <TableRow key={u.id}><TableCell><div className="flex flex-col"><span className="font-bold">{u.name}</span><span className="text-xs text-muted-foreground">{u.email}</span></div></TableCell><TableCell className="font-black text-primary">₦{u.walletBalance?.toLocaleString() || '0'}</TableCell><TableCell className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell></TableRow>
+                    <TableRow key={u.id}><TableCell><div className="flex flex-col"><span className="font-bold">{u.name}</span><span className="text-xs text-muted-foreground">{u.email}</span></div></TableCell><TableCell className="font-black text-primary">₦{Number(u.walletBalance || 0).toLocaleString()}</TableCell><TableCell className="text-xs text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</TableCell></TableRow>
                   ))}
                 </TableBody>
               </Table>
