@@ -27,10 +27,10 @@ import { useToast } from '@/hooks/use-toast';
 import {
   useFirestore,
   useUser,
-  useCollection,
+  useCollection, useDoc,
   useMemoFirebase
 } from '@/firebase';
-import { collection, query, addDoc } from 'firebase/firestore';
+import { collection, query, addDoc, doc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -53,6 +53,9 @@ export default function SocialLogsPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user } = useUser();
+  const userDocRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
+  const { data: userData } = useDoc(userDocRef);
+  const walletBalance = userData?.walletBalance || 0;
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -160,102 +163,75 @@ export default function SocialLogsPage() {
     });
   };
 
-  const handlePaystackPayment = () => {
-    if (!user || !selectedProduct) return;
+  const handlePaystackPayment = async () => {
+    if (!db || !user || !selectedProduct) return;
 
     const amount = getPrice(selectedProduct);
 
     if (!amount || amount <= 0) {
       toast({
-        variant: 'destructive',
-        title: 'Invalid product price',
-        description: 'This product does not have a valid price.'
+        variant: "destructive",
+        title: "Invalid product price",
+        description: "This product does not have a valid price."
       });
       return;
     }
 
-    if (!publicKey) {
+    if (Number(walletBalance) < amount) {
       toast({
-        variant: 'destructive',
-        title: 'Paystack unavailable',
-        description: 'Paystack payment is not configured.'
+        variant: "destructive",
+        title: "Insufficient Wallet Balance",
+        description: "Please fund your wallet before purchasing this Social Log."
       });
       return;
     }
 
     setIsProcessing(true);
 
-    initializePayment({
-      onSuccess: async (response: any) => {
-        try {
-          const reference = response?.reference;
+    try {
+      const idToken = await user.getIdToken();
+      const reference = `VL-WALLET-SOCIAL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-          if (!reference) {
-            throw new Error("Paystack did not return a transaction reference.");
-          }
+      const deliveryResponse = await fetch("/api/social-log/deliver", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          productName: selectedProduct.name || "Social Account",
+          amount,
+          reference
+        })
+      });
 
-          if (!user) {
-            throw new Error("Customer account could not be identified.");
-          }
+      const deliveryData = await deliveryResponse.json();
 
-          const idToken = await user.getIdToken();
-
-          const deliveryResponse = await fetch("/api/social-log/deliver", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({
-              productId: selectedProduct?.id,
-              productName: selectedProduct?.name || "Social Account",
-              amount: getPrice(selectedProduct),
-              reference,
-            }),
-          });
-
-          const deliveryData = await deliveryResponse.json();
-
-          if (!deliveryResponse.ok || !deliveryData.status) {
-            throw new Error(
-              deliveryData.message ||
-                "Payment was successful, but the Social Log could not be delivered."
-            );
-          }
-
-          toast({
-            title: "Purchase Successful! 🎉",
-            description:
-              "Your Social Log has been purchased and delivered to your account.",
-          });
-
-          setDeliveredAccount(deliveryData.account);
-          setIsModalOpen(false);
-          setIsProcessing(false);
-          // Stay on this page to show the delivered account.
-        } catch (error: any) {
-          console.error("Social Log Paystack delivery error:", error);
-
-          toast({
-            variant: "destructive",
-            title: "Delivery Error",
-            description:
-              error?.message ||
-              "Payment was received, but we could not deliver your Social Log. Please contact support with your Paystack reference.",
-          });
-
-          setIsProcessing(false);
-        }
-      },
-      onClose: () => {
-        setIsProcessing(false);
-
-        toast({
-          title: 'Payment Cancelled',
-          description: 'You closed the Paystack payment window.'
-        });
+      if (!deliveryResponse.ok || !deliveryData.status) {
+        throw new Error(
+          deliveryData.message || "Unable to complete the Social Log purchase."
+        );
       }
-    });
+
+      toast({
+        title: "Purchase Successful! 🎉",
+        description: "Your Social Log has been purchased and delivered to your account."
+      });
+
+      setDeliveredAccount(deliveryData.account);
+      setIsModalOpen(false);
+    } catch (error: any) {
+      console.error("Social Log wallet purchase error:", error);
+
+      toast({
+        variant: "destructive",
+        title: "Purchase Failed",
+        description: error?.message || "Unable to complete your purchase."
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSubmitManualRequest = async (e: React.FormEvent) => {
@@ -475,231 +451,76 @@ export default function SocialLogsPage() {
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Amount to Pay
+                    Product
+                  </span>
+
+                  <span className="text-sm font-black text-primary">
+                    {selectedProduct.name}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex justify-between items-center">
+                  <span className="text-xs font-bold uppercase text-muted-foreground">
+                    Amount
                   </span>
 
                   <span className="text-xl font-black text-primary">
                     ₦{getPrice(selectedProduct).toLocaleString()}
                   </span>
                 </div>
-
-                <div className="mt-2 text-sm font-bold">
-                  {selectedProduct.name}
-                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  variant={paymentMethod === 'paystack' ? 'default' : 'outline'}
-                  className="h-14 rounded-xl font-black"
-                  onClick={() => setPaymentMethod('paystack')}
-                  disabled={isProcessing}
-                >
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Paystack
-                </Button>
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="h-6 w-6 text-primary flex-shrink-0" />
+
+                  <div>
+                    <h3 className="font-black text-primary">
+                      Pay with VirtuLink Wallet
+                    </h3>
+
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your VirtuLink wallet will be securely debited for this purchase.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-white border p-4 flex justify-between items-center">
+                  <span className="text-sm font-bold text-muted-foreground">
+                    Available Balance
+                  </span>
+
+                  <span className="font-black text-green-600">
+                    ₦{Number(walletBalance).toLocaleString()}
+                  </span>
+                </div>
 
                 <Button
                   type="button"
-                  variant={paymentMethod === 'manual' ? 'default' : 'outline'}
-                  className="h-14 rounded-xl font-black"
-                  onClick={() => setPaymentMethod('manual')}
-                  disabled={isProcessing}
+                  className="w-full h-14 font-black text-lg rounded-xl"
+                  onClick={handlePaystackPayment}
+                  disabled={
+                    isProcessing ||
+                    Number(walletBalance) < getPrice(selectedProduct)
+                  }
                 >
-                  <Building2 className="mr-2 h-5 w-5" />
-                  Bank Transfer
+                  {isProcessing ? (
+                    <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                  ) : (
+                    <ShoppingBag className="mr-2 h-5 w-5" />
+                  )}
+
+                  {Number(walletBalance) < getPrice(selectedProduct)
+                    ? "Insufficient Wallet Balance"
+                    : `Buy with Wallet — ₦${getPrice(selectedProduct).toLocaleString()}`}
                 </Button>
+
+                {Number(walletBalance) < getPrice(selectedProduct) && (
+                  <p className="text-xs text-center text-destructive font-medium">
+                    Please fund your VirtuLink wallet before purchasing this Social Log.
+                  </p>
+                )}
               </div>
-
-              {paymentMethod === 'paystack' && (
-                <div className="space-y-5">
-                  <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="h-6 w-6 text-green-600 flex-shrink-0" />
-
-                      <div>
-                        <h3 className="font-black text-green-800">
-                          Secure Paystack Payment
-                        </h3>
-
-                        <p className="text-sm text-green-700 mt-1">
-                          Pay securely with your available Paystack payment options.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    className="w-full h-14 font-black text-lg rounded-xl"
-                    onClick={handlePaystackPayment}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="animate-spin mr-2 h-5 w-5" />
-                    ) : (
-                      <CreditCard className="mr-2 h-5 w-5" />
-                    )}
-
-                    Pay ₦{getPrice(selectedProduct).toLocaleString()} with Paystack
-                  </Button>
-                </div>
-              )}
-
-              {paymentMethod === 'manual' && (
-                <div className="space-y-5">
-                  <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">
-                        Bank Name
-                      </Label>
-
-                      <div className="flex justify-between items-center bg-white p-2 rounded-lg border">
-                        <span className="text-sm font-bold">
-                          {ADMIN_BANK_DETAILS.bankName}
-                        </span>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() =>
-                            copyToClipboard(
-                              ADMIN_BANK_DETAILS.bankName,
-                              'Bank'
-                            )
-                          }
-                        >
-                          {copiedField === 'Bank' ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">
-                        Account Number
-                      </Label>
-
-                      <div className="flex justify-between items-center bg-white p-2 rounded-lg border">
-                        <span className="text-lg font-black font-mono">
-                          {ADMIN_BANK_DETAILS.accountNumber}
-                        </span>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() =>
-                            copyToClipboard(
-                              ADMIN_BANK_DETAILS.accountNumber,
-                              'Account'
-                            )
-                          }
-                        >
-                          {copiedField === 'Account' ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">
-                        Account Name
-                      </Label>
-
-                      <div className="text-sm font-bold bg-white p-2 rounded-lg border">
-                        {ADMIN_BANK_DETAILS.accountName}
-                      </div>
-                    </div>
-                  </div>
-
-                  <form
-                    onSubmit={handleSubmitManualRequest}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="senderName">
-                        Sender Name (Your Full Name)
-                      </Label>
-
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-
-                        <Input
-                          id="senderName"
-                          placeholder="Enter name used for transfer"
-                          className="pl-10"
-                          required
-                          value={formData.senderName}
-                          onChange={(e) =>
-                            setFormData(prev => ({
-                              ...prev,
-                              senderName: e.target.value
-                            }))
-                          }
-                          disabled={isProcessing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reference">
-                        Transaction Reference / Remark
-                      </Label>
-
-                      <div className="relative">
-                        <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-
-                        <Input
-                          id="reference"
-                          placeholder="Reference number or description"
-                          className="pl-10"
-                          required
-                          value={formData.reference}
-                          onChange={(e) =>
-                            setFormData(prev => ({
-                              ...prev,
-                              reference: e.target.value
-                            }))
-                          }
-                          disabled={isProcessing}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2 text-[10px] text-muted-foreground bg-yellow-50 p-2 rounded-lg border border-yellow-200">
-                      <ShieldCheck className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-
-                      <span>
-                        Verification typically takes 15–60 minutes. Providing
-                        a clear sender name and reference speeds up the process.
-                      </span>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full h-12 font-black"
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                      ) : (
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                      )}
-
-                      Confirm Bank Transfer
-                    </Button>
-                  </form>
-                </div>
-              )}
             </div>
           )}
         </DialogContent>
