@@ -97,7 +97,7 @@ export default function AdminDashboard() {
           <Link href="/admin/funding" className="block w-full">
             <Button variant="ghost" className="w-full justify-start"><Banknote className="mr-2 h-4 w-4" /> Funding Requests</Button>
           </Link>
-          <Button variant="ghost" className="w-full justify-start"><ShoppingBag className="mr-2 h-4 w-4" /> Inventory</Button>
+          <Link href="/admin/social-inventory" className="block w-full"><Button variant="ghost" className="w-full justify-start"><ShoppingBag className="mr-2 h-4 w-4" /> Social Log Inventory</Button></Link>
           <Button variant="ghost" className="w-full justify-start"><UsersIcon className="mr-2 h-4 w-4" /> Customers</Button>
           <Button variant="ghost" className="w-full justify-start"><History className="mr-2 h-4 w-4" /> System Logs</Button>
         </nav>
@@ -119,7 +119,7 @@ export default function AdminDashboard() {
                Funding Queue
              </Button>
            </Link>
-           <Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs opacity-50"><ShoppingBag className="h-6 w-6" /> Products</Button>
+           <Link href="/admin/social-inventory"><Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs border-primary/20 bg-primary/5"><ShoppingBag className="h-6 w-6 text-primary" /> Social Log Inventory</Button></Link>
            <Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs opacity-50"><UsersIcon className="h-6 w-6" /> Customers</Button>
            <Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs opacity-50"><LayoutDashboard className="h-6 w-6" /> Reports</Button>
         </div>
