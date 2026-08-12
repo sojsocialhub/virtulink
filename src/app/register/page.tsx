@@ -48,13 +48,23 @@ export default function RegisterPage() {
       toast({ title: "Account Created!", description: "Welcome to S.O.J VTU Hub." });
       router.push('/dashboard');
     } catch (error: any) {
+      let message = "Unable to create your account. Please try again.";
+
+      if (error?.code === "auth/email-already-in-use") {
+        message = "This email address is already registered. Please sign in instead.";
+      } else if (error?.code === "auth/invalid-email") {
+        message = "Please enter a valid email address.";
+      } else if (error?.code === "auth/weak-password") {
+        message = "Your password is too weak. Please choose a stronger password.";
+      } else if (error?.code === "auth/network-request-failed") {
+        message = "Network error. Please check your internet connection and try again.";
+      }
+
       toast({
         variant: "destructive",
         title: "Registration Failed",
-        description: error.message || "An error occurred during signup."
+        description: message
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
