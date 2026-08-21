@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { NETWORKS } from '@/lib/data';
 import Link from 'next/link';
-import { doc, addDoc, collection, updateDoc, increment } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc } from '@/firebase';
 
 export default function AirtimePage() {
@@ -54,24 +54,41 @@ export default function AirtimePage() {
     setLoading(true);
 
     try {
-      await updateDoc(userDocRef, {
-        walletBalance: increment(-amount)
+      const idToken = await user.getIdToken();
+
+      const response = await fetch('/api/airtime/purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          network: formData.network,
+          phoneNumber: formData.phoneNumber,
+          amount,
+        }),
       });
 
-      await addDoc(collection(db, 'transactions'), {
-        userId: user.uid,
-        type: 'airtime',
-        network: formData.network,
-        phoneNumber: formData.phoneNumber,
-        amount: amount,
-        status: 'Completed',
-        date: new Date().toISOString()
+      const data = await response.json();
+
+      if (!response.ok || !data.status) {
+        throw new Error(
+          data.message || 'Airtime purchase failed. Please try again.'
+        );
+      }
+
+      toast({
+        title: "Purchase Successful! 🎉",
+        description: data.message,
       });
 
-      toast({ title: "Purchase Successful!", description: `₦${amount} ${formData.network} airtime sent to ${formData.phoneNumber}` });
       router.push('/dashboard');
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: "Purchase failed. Please try again." });
+      toast({
+        variant: "destructive",
+        title: "Purchase Failed",
+        description: e?.message || "Please try again.",
+      });
       setLoading(false);
     }
   };
