@@ -213,6 +213,8 @@ export async function POST(request: Request) {
 
     const vtpassData = await vtpassResponse.json();
 
+    console.log('VTpass FULL DATA RESPONSE:', JSON.stringify(vtpassData, null, 2));
+
     console.log('VTpass Data Response:', {
       httpStatus: vtpassResponse.status,
       code: vtpassData?.code,
