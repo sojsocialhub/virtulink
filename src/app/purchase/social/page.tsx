@@ -44,7 +44,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ADMIN_BANK_DETAILS } from '@/lib/data';
-import { usePaystackPayment } from 'react-paystack';
 
 type PaymentMethod = 'paystack' | 'manual';
 
@@ -129,7 +128,6 @@ export default function SocialLogsPage() {
     publicKey
   };
 
-  const initializePayment = usePaystackPayment(paystackConfig);
 
   const handleOpenModal = (log: any) => {
     if (!user) {

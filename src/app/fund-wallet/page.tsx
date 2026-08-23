@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { ADMIN_BANK_DETAILS } from '@/lib/data';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePaystackPayment } from 'react-paystack';
 
 export default function FundWalletPage() {
   const { toast } = useToast();
@@ -23,15 +22,7 @@ export default function FundWalletPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
-  
-  const config = {
-    reference: `VL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    email: user?.email || '',
-    amount: (Number(amount) || 0) * 100, // Paystack expects amount in kobo
-    publicKey: publicKey,
-  };
 
-  const initializePayment = usePaystackPayment(config);
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -39,35 +30,87 @@ export default function FundWalletPage() {
     setTimeout(() => setCopiedField(null), 2000);
     toast({ title: "Copied!", description: `${field} copied to clipboard.` });
   };
-
   const handlePaystackPayment = () => {
     const amountNum = Number(amount);
+
     if (!amount || isNaN(amountNum) || amountNum < 100) {
-      toast({ 
-        variant: "destructive", 
-        title: "Invalid amount", 
-        description: "Minimum funding amount is ₦100. Please enter a value of 100 or higher." 
+      toast({
+        variant: "destructive",
+        title: "Invalid amount",
+        description: "Minimum funding amount is ₦100. Please enter a value of 100 or higher."
       });
       return;
     }
 
     if (!publicKey) {
-      toast({ 
-        variant: "destructive", 
-        title: "Configuration Error", 
-        description: "Paystack public key is missing in your environment configuration." 
+      toast({
+        variant: "destructive",
+        title: "Configuration Error",
+        description: "Paystack public key is missing in your environment configuration."
       });
       return;
     }
 
-    initializePayment({
-      onSuccess: (reference: any) => {
-        router.push(`/fund-wallet/success?reference=${reference.reference}`);
-      },
-      onClose: () => {
-        toast({ title: "Payment Cancelled", description: "You closed the payment window." });
+    if (typeof window === "undefined") return;
+
+    const openPaystack = () => {
+      const PaystackPop = (window as any).PaystackPop;
+
+      if (!PaystackPop) {
+        toast({
+          variant: "destructive",
+          title: "Payment Error",
+          description: "Paystack could not be loaded. Please check your internet connection and try again."
+        });
+        return;
       }
-    });
+
+      const handler = PaystackPop.setup({
+        key: publicKey,
+        email: user?.email || "",
+        amount: amountNum * 100,
+        ref: `VL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        callback: (response: any) => {
+          router.push(`/fund-wallet/success?reference=${response.reference}`);
+        },
+        onClose: () => {
+          toast({
+            title: "Payment Cancelled",
+            description: "You closed the payment window."
+          });
+        }
+      });
+
+      handler.openIframe();
+    };
+
+    if ((window as any).PaystackPop) {
+      openPaystack();
+      return;
+    }
+
+    const existingScript = document.querySelector(
+      'script[src="https://js.paystack.co/v2/inline.js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", openPaystack, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v2/inline.js";
+    script.async = true;
+    script.onload = openPaystack;
+    script.onerror = () => {
+      toast({
+        variant: "destructive",
+        title: "Payment Error",
+        description: "Unable to load Paystack. Please try again."
+      });
+    };
+
+    document.body.appendChild(script);
   };
 
   return (
