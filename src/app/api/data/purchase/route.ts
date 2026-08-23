@@ -214,7 +214,17 @@ export async function POST(request: Request) {
     const vtpassData = await vtpassResponse.json();
 
     console.log('VTpass FULL DATA RESPONSE:', JSON.stringify(vtpassData, null, 2));
-    console.log('VTpass TRANSACTION CONTENT:', JSON.stringify(vtpassData?.content, null, 2));
+    console.log('VTpass PRICING INFO:', {
+      code: vtpassData?.code,
+      transactionId: vtpassData?.content?.transactions?.transactionId,
+      status: vtpassData?.content?.transactions?.status,
+      productName: vtpassData?.content?.transactions?.product_name,
+      amount: vtpassData?.content?.transactions?.amount,
+      amountCharged: vtpassData?.content?.transactions?.amount_charged,
+      commission: vtpassData?.content?.transactions?.commission,
+      discount: vtpassData?.content?.transactions?.discount,
+      totalAmount: vtpassData?.content?.transactions?.total_amount,
+    });
 
     console.log('VTpass Data Response:', {
       httpStatus: vtpassResponse.status,
