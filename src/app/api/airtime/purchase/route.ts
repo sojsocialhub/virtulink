@@ -3,13 +3,13 @@ import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 
-const VTPASS_URL = 'https://sandbox.vtpass.com/api/pay';
+const CONNECTBRIDGE_URL = 'https://connectbridge.com.ng/api/airtime';
 
-const NETWORK_SERVICE_IDS: Record<string, string> = {
-  MTN: 'mtn',
-  Airtel: 'airtel',
-  Glo: 'glo',
-  '9mobile': 'etisalat',
+const NETWORK_IDS: Record<string, string> = {
+  MTN: '1',
+  Glo: '2',
+  Airtel: '3',
+  '9mobile': '4',
 };
 
 export async function POST(request: Request) {
@@ -29,12 +29,11 @@ export async function POST(request: Request) {
     const userEmail = decodedToken.email || '';
 
     const body = await request.json();
-
     const network = String(body.network || '').trim();
     const phoneNumber = String(body.phoneNumber || '').trim();
     const amount = Number(body.amount);
 
-    if (!NETWORK_SERVICE_IDS[network]) {
+    if (!NETWORK_IDS[network]) {
       return NextResponse.json(
         { status: false, message: 'Invalid network selected.' },
         { status: 400 }
@@ -45,31 +44,23 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           status: false,
-          message: 'Enter a valid Nigerian phone number, e.g. 08012345678.'
+          message: 'Enter a valid Nigerian phone number, e.g. 08012345678.',
         },
         { status: 400 }
       );
     }
 
-    if (!Number.isFinite(amount) || amount < 100) {
+    if (!Number.isFinite(amount) || amount < 100 || !Number.isInteger(amount)) {
       return NextResponse.json(
-        { status: false, message: 'Minimum airtime is ₦100.' },
+        { status: false, message: 'Enter a valid airtime amount of at least ₦100.' },
         { status: 400 }
       );
     }
 
-    if (!Number.isInteger(amount)) {
-      return NextResponse.json(
-        { status: false, message: 'Airtime amount must be a whole number.' },
-        { status: 400 }
-      );
-    }
+    const apiKey = process.env.CONNECTBRIDGE_API_KEY?.trim();
 
-    const apiKey = process.env.VTPASS_API_KEY;
-    const secretKey = process.env.VTPASS_SECRET_KEY;
-
-    if (!apiKey || !secretKey) {
-      console.error('VTpass credentials are not configured.');
+    if (!apiKey) {
+      console.error('Connect Bridge API key is not configured.');
       return NextResponse.json(
         { status: false, message: 'Airtime service is temporarily unavailable.' },
         { status: 500 }
@@ -78,25 +69,6 @@ export async function POST(request: Request) {
 
     const db = getAdminDb();
     const userRef = db.collection('users').doc(userId);
-    const lagosDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Africa/Lagos',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(new Date());
-
-    const dateParts = Object.fromEntries(
-      lagosDate.map(({ type, value }) => [type, value])
-    );
-
-    const requestId =
-      `${dateParts.year}${dateParts.month}${dateParts.day}` +
-      `${dateParts.hour}${dateParts.minute}` +
-      crypto.randomBytes(6).toString('hex');
-
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
@@ -113,63 +85,55 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           status: false,
-          message: `Insufficient wallet balance. Price: ₦${amount.toLocaleString()}, Balance: ₦${walletBalance.toLocaleString()}.`
+          message: `Insufficient wallet balance. Price: ₦${amount.toLocaleString()}, Balance: ₦${walletBalance.toLocaleString()}.`,
         },
         { status: 400 }
       );
     }
 
-    const vtpassResponse = await fetch(VTPASS_URL, {
+    const localRequestId =
+      `AIR${Date.now()}${crypto.randomBytes(4).toString('hex')}`;
+
+    const providerResponse = await fetch(CONNECTBRIDGE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': apiKey,
-        'secret-key': secretKey,
+        Authorization: `Token ${apiKey}`,
       },
       body: JSON.stringify({
-        request_id: requestId,
-        serviceID: NETWORK_SERVICE_IDS[network],
-        amount,
+        amount: String(amount),
+        network: NETWORK_IDS[network],
         phone: phoneNumber,
+        Ported_number: true,
       }),
       cache: 'no-store',
     });
 
-    const vtpassData = await vtpassResponse.json();
+    const providerData = await providerResponse.json();
 
-    console.log('VTpass Airtime Response:', {
-      httpStatus: vtpassResponse.status,
-      code: vtpassData?.code,
-      responseDescription: vtpassData?.response_description,
-      requestId,
+    console.log('Connect Bridge Airtime Response:', {
+      httpStatus: providerResponse.status,
+      status: providerData?.status,
+      providerStatus: providerData?.Status,
+      localRequestId,
     });
 
-    const providerStatus =
-      vtpassData?.content?.transactions?.status || '';
+    const successful =
+      providerResponse.ok &&
+      String(providerData?.status).toLowerCase() === 'success' &&
+      String(providerData?.Status).toLowerCase() === 'successful';
 
-    const providerCode = String(vtpassData?.code || '');
-
-    if (
-      !vtpassResponse.ok ||
-      providerCode !== '000' ||
-      providerStatus !== 'delivered'
-    ) {
-      const isPending =
-        providerStatus === 'pending' ||
-        providerCode === '099' ||
-        /pending/i.test(String(vtpassData?.response_description || ''));
-
+    if (!successful) {
       return NextResponse.json(
         {
           status: false,
-          pending: isPending,
-          message: isPending
-            ? 'Your airtime purchase is still being processed. Your wallet has not been deducted.'
-            : vtpassData?.response_description ||
-              'Airtime purchase failed. Your wallet has not been deducted.',
-          requestId,
+          message:
+            providerData?.message ||
+            providerData?.response ||
+            'Airtime purchase failed. Your wallet has not been deducted.',
+          requestId: localRequestId,
         },
-        { status: isPending ? 202 : 400 }
+        { status: 400 }
       );
     }
 
@@ -187,7 +151,7 @@ export async function POST(request: Request) {
 
       if (freshWalletBalance < amount) {
         throw new Error(
-          'Your wallet balance changed while this purchase was processing. Please contact support before trying again.'
+          'Your wallet balance changed while this purchase was processing.'
         );
       }
 
@@ -204,10 +168,9 @@ export async function POST(request: Request) {
         phoneNumber,
         amount,
         paymentMethod: 'Wallet',
-        reference: requestId,
-        provider: 'VTpass',
-        providerTransactionId:
-          vtpassData?.content?.transactions?.transactionId || '',
+        reference: providerData?.['request-id'] || localRequestId,
+        provider: 'Connect Bridge',
+        providerTransactionId: providerData?.['request-id'] || '',
         status: 'Completed',
         date: new Date().toISOString(),
         createdAt: FieldValue.serverTimestamp(),
@@ -216,10 +179,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       status: true,
-      message: `₦${amount.toLocaleString()} ${network} airtime sent to ${phoneNumber}.`,
-      requestId,
-      transactionId:
-        vtpassData?.content?.transactions?.transactionId || null,
+      message:
+        providerData?.message ||
+        `₦${amount.toLocaleString()} ${network} airtime sent to ${phoneNumber}.`,
+      requestId: providerData?.['request-id'] || localRequestId,
     });
   } catch (error: any) {
     console.error('Airtime Purchase Error:', error);
@@ -227,8 +190,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         status: false,
-        message:
-          error?.message || 'Unable to complete the airtime purchase.',
+        message: error?.message || 'Unable to complete the airtime purchase.',
       },
       { status: 500 }
     );
