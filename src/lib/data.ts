@@ -1,7 +1,7 @@
 
 import { ProductPlan, Product } from './types';
 
-export const NETWORKS = ['MTN', 'Airtel', 'Glo', '9mobile'];
+export const NETWORKS = ['Airtel'];
 
 export const DATA_PLANS: ProductPlan[] = [
   { id: 'mtn-1gb', name: 'MTN 1GB - 30 Days', price: 300, network: 'MTN', type: 'data' },

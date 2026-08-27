@@ -6,10 +6,7 @@ import crypto from 'crypto';
 const CONNECTBRIDGE_URL = 'https://connectbridge.com.ng/api/airtime';
 
 const NETWORK_IDS: Record<string, string> = {
-  MTN: '1',
-  Glo: '2',
-  Airtel: '3',
-  '9mobile': '4',
+  Airtel: '2',
 };
 
 export async function POST(request: Request) {
