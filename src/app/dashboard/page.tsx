@@ -1,6 +1,6 @@
 'use client';
 
-import { Smartphone, Globe, MessageSquare, History, PlusCircle, Loader2, Wallet } from 'lucide-react';
+import { Smartphone, Globe, MessageSquare, History, PlusCircle, Loader2, Wallet, Rocket } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -33,6 +33,7 @@ export default function Dashboard() {
     { label: 'Buy Data', icon: Globe, color: 'bg-green-100 text-green-600', href: '/purchase/data' },
     { label: 'Social Log', icon: MessageSquare, color: 'bg-purple-100 text-purple-600', href: '/purchase/social' },
     { label: 'Buy Number', icon: Smartphone, color: 'bg-orange-100 text-orange-600', href: '/purchase/number' },
+    { label: 'BOOST 🚀', icon: Rocket, color: 'bg-pink-100 text-pink-600', href: '/purchase/boost' },
   ];
 
   return (
