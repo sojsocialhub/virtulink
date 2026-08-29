@@ -1,6 +1,6 @@
 "use client";
 
-import { doc, collection, query, updateDoc } from "firebase/firestore";
+import { doc, collection, query, updateDoc, where } from "firebase/firestore";
 import {
   useFirestore,
   useUser,
@@ -36,9 +36,22 @@ export default function BoostOrdersPage() {
 
   const { data: orders, loading } = useCollection(ordersQuery);
 
+  const transactionsQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+
+    return query(
+      collection(db, "transactions"),
+      where("type", "==", "boost")
+    );
+  }, [db, isAdmin]);
+
+  const { data: boostTransactions } =
+    useCollection(transactionsQuery);
+
   const updateStatus = async (
     orderId: string,
-    status: string
+    status: string,
+    transactionId?: string
   ) => {
     if (!db) return;
 
@@ -49,6 +62,15 @@ export default function BoostOrdersPage() {
           status
         }
       );
+
+      if (transactionId) {
+        await updateDoc(
+          doc(db, "transactions", transactionId),
+          {
+            status
+          }
+        );
+      }
 
       toast({
         title: "Order Updated",
@@ -180,8 +202,12 @@ export default function BoostOrdersPage() {
 
       <div className="grid gap-4">
 
-        {orders?.map((order: any) => (
+        {orders?.map((order: any) => {
+          const matchingTransaction = boostTransactions?.find(
+            (transaction: any) => transaction.purchaseId === order.id
+          );
 
+          return (
           <Card key={order.id}>
 
             <CardHeader>
@@ -273,7 +299,11 @@ export default function BoostOrdersPage() {
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    updateStatus(order.id, "Pending")
+                    updateStatus(
+                      order.id,
+                      "Pending",
+                      matchingTransaction?.id
+                    )
                   }
                 >
                   Pending
@@ -283,7 +313,11 @@ export default function BoostOrdersPage() {
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    updateStatus(order.id, "Processing")
+                    updateStatus(
+                      order.id,
+                      "Processing",
+                      matchingTransaction?.id
+                    )
                   }
                 >
                   Processing
@@ -292,7 +326,11 @@ export default function BoostOrdersPage() {
                 <Button
                   size="sm"
                   onClick={() =>
-                    updateStatus(order.id, "Completed")
+                    updateStatus(
+                      order.id,
+                      "Completed",
+                      matchingTransaction?.id
+                    )
                   }
                 >
                   Completed
@@ -302,7 +340,11 @@ export default function BoostOrdersPage() {
                   size="sm"
                   variant="destructive"
                   onClick={() =>
-                    updateStatus(order.id, "Failed")
+                    updateStatus(
+                      order.id,
+                      "Failed",
+                      matchingTransaction?.id
+                    )
                   }
                 >
                   Failed
@@ -313,8 +355,8 @@ export default function BoostOrdersPage() {
             </CardContent>
 
           </Card>
-
-        ))}
+          );
+        })}
 
       </div>
 

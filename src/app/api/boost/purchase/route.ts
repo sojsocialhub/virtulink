@@ -156,7 +156,7 @@ export async function POST(request: Request) {
         paymentMethod: 'Wallet',
         reference,
 
-        status: 'Completed',
+        status: 'Pending',
 
         date: FieldValue.serverTimestamp(),
         createdAt: FieldValue.serverTimestamp(),
