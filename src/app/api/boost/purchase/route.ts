@@ -158,6 +158,7 @@ export async function POST(request: Request) {
 
         status: 'Completed',
 
+        date: FieldValue.serverTimestamp(),
         createdAt: FieldValue.serverTimestamp(),
 
         purchaseId: purchaseRef.id
