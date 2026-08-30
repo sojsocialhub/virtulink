@@ -109,7 +109,26 @@ export default function Dashboard() {
                     <div>
                       <p className="font-bold text-sm capitalize">{tx.type.replace('_', ' ')}</p>
                       <p className="text-xs text-muted-foreground">
-                        {tx.date ? new Date(tx.date).toLocaleDateString() : 'Unknown date'}
+                        {(() => {
+                          if (!tx.date) return 'Unknown date';
+
+                          try {
+                            const date =
+                              typeof tx.date === 'object' &&
+                              typeof tx.date.toDate === 'function'
+                                ? tx.date.toDate()
+                                : new Date(tx.date);
+
+                            return Number.isNaN(date.getTime())
+                              ? 'Unknown date'
+                              : date.toLocaleString(undefined, {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short'
+                                });
+                          } catch {
+                            return 'Unknown date';
+                          }
+                        })()}
                       </p>
                     </div>
                   </div>
