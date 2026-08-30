@@ -112,6 +112,34 @@ export default function TransactionsPage() {
     }
   };
 
+  const formatTransactionDate = (dateValue: any) => {
+    if (!dateValue) return 'N/A';
+
+    try {
+      let date: Date;
+
+      if (
+        typeof dateValue === 'object' &&
+        typeof dateValue.toDate === 'function'
+      ) {
+        date = dateValue.toDate();
+      } else {
+        date = new Date(dateValue);
+      }
+
+      if (Number.isNaN(date.getTime())) {
+        return 'N/A';
+      }
+
+      return date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -265,12 +293,7 @@ export default function TransactionsPage() {
                         </td>
 
                         <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {tx.date
-                            ? new Date(tx.date).toLocaleString(undefined, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short'
-                              })
-                            : 'N/A'}
+                          {formatTransactionDate(tx.date)}
                         </td>
 
                         <td className="px-6 py-4">
