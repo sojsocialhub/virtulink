@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
+const SMM_API_URL = process.env.SMM_API_URL;
+const SMM_API_KEY = process.env.SMM_API_KEY;
+
 export async function POST(request: Request) {
   try {
     const authorization = request.headers.get('authorization');
@@ -10,6 +13,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { status: false, message: 'Authentication required.' },
         { status: 401 }
+      );
+    }
+
+    if (!SMM_API_URL || !SMM_API_KEY) {
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'BOOST provider is not configured.'
+        },
+        { status: 503 }
       );
     }
 
@@ -53,69 +66,166 @@ export async function POST(request: Request) {
     }
 
     const db = getAdminDb();
+    const userRef = db.collection('users').doc(userId);
+    const serviceRef = db.collection('social_services').doc(serviceId);
+
+    // Read customer and service before sending to the external provider.
+    const [userSnap, serviceSnap] = await Promise.all([
+      userRef.get(),
+      serviceRef.get()
+    ]);
+
+    if (!userSnap.exists) {
+      return NextResponse.json(
+        { status: false, message: 'Customer account not found.' },
+        { status: 404 }
+      );
+    }
+
+    if (!serviceSnap.exists) {
+      return NextResponse.json(
+        { status: false, message: 'BOOST service not found.' },
+        { status: 404 }
+      );
+    }
+
+    const userData = userSnap.data() || {};
+    const serviceData = serviceSnap.data() || {};
+
+    if (
+      serviceData.category !== 'boost' ||
+      serviceData.active !== true
+    ) {
+      return NextResponse.json(
+        { status: false, message: 'BOOST service unavailable.' },
+        { status:400 }
+      );
+    }
+
+    const providerServiceId =
+      serviceData.providerServiceId ??
+      serviceData.provider_service_id;
+
+    if (
+      providerServiceId === undefined ||
+      providerServiceId === null ||
+      String(providerServiceId).trim() === ''
+    ) {
+      return NextResponse.json(
+        {
+          status: false,
+          message:
+            'This BOOST service has not been connected to an SMM provider service yet.'
+        },
+        { status: 400 }
+      );
+    }
+
+    const baseQuantity = Number(serviceData.quantity || 0);
+
+    const basePrice = Number(
+      serviceData.sellingPrice ??
+      serviceData.sellingprice ??
+      0
+    );
+
+    if (baseQuantity <= 0 || basePrice <= 0) {
+      return NextResponse.json(
+        { status: false, message: 'Invalid BOOST service pricing.' },
+        { status: 400 }
+      );
+    }
+
+    const finalAmount = Math.ceil(
+      (basePrice / baseQuantity) * requestedQuantity
+    );
+
+    const walletBalance = Number(userData.walletBalance || 0);
+
+    if (walletBalance < finalAmount) {
+      return NextResponse.json(
+        { status: false, message: 'Insufficient wallet balance.' },
+        { status: 400 }
+      );
+    }
+
+    // Send order to SMM Provider.
+    const formData = new URLSearchParams({
+      key: SMM_API_KEY,
+      action: 'add',
+      service: String(providerServiceId),
+      link: String(targetLink).trim(),
+      quantity: String(requestedQuantity)
+    });
+
+    // Only send comments when the customer entered them.
+    if (comments && String(comments).trim()) {
+      formData.append('comments', String(comments).trim());
+    }
+
+    const providerResponse = await fetch(SMM_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData.toString(),
+      cache: 'no-store'
+    });
+
+    const providerData = await providerResponse.json().catch(() => ({}));
+
+    if (
+      !providerResponse.ok ||
+      providerData.error ||
+      !providerData.order
+    ) {
+      console.error('SMM Provider order failed:', providerData);
+
+      return NextResponse.json(
+        {
+          status: false,
+          message:
+            providerData.error ||
+            'BOOST provider could not accept this order.'
+        },
+        { status: 400 }
+      );
+    }
+
+    const providerOrderId = String(providerData.order);
 
     const purchaseRef = db.collection('boost_orders').doc();
     const transactionRef = db.collection('transactions').doc();
 
-    let finalAmount = 0;
-
+    // Provider accepted the order. Now safely deduct wallet and save records.
     await db.runTransaction(async (transaction) => {
-      const userRef = db.collection('users').doc(userId);
-      const serviceRef = db.collection('social_services').doc(serviceId);
+      const latestUserSnap = await transaction.get(userRef);
 
-      const [userSnap, serviceSnap] = await Promise.all([
-        transaction.get(userRef),
-        transaction.get(serviceRef)
-      ]);
-
-      if (!userSnap.exists) {
+      if (!latestUserSnap.exists) {
         throw new Error('Customer account not found.');
       }
 
-      if (!serviceSnap.exists) {
-        throw new Error('BOOST service not found.');
-      }
-
-      const userData = userSnap.data() || {};
-      const serviceData = serviceSnap.data() || {};
-
-      if (
-        serviceData.category !== 'boost' ||
-        serviceData.active !== true
-      ) {
-        throw new Error('BOOST service unavailable.');
-      }
-
-      const baseQuantity = Number(serviceData.quantity || 0);
-
-      const basePrice = Number(
-        serviceData.sellingPrice ??
-        serviceData.sellingprice ??
-        0
+      const latestUserData = latestUserSnap.data() || {};
+      const latestBalance = Number(
+        latestUserData.walletBalance || 0
       );
 
-      if (baseQuantity <= 0 || basePrice <= 0) {
-        throw new Error('Invalid BOOST service pricing.');
-      }
-
-      finalAmount = Math.ceil(
-        (basePrice / baseQuantity) * requestedQuantity
-      );
-
-      const walletBalance = Number(userData.walletBalance || 0);
-
-      if (walletBalance < finalAmount) {
-        throw new Error('Insufficient wallet balance.');
+      if (latestBalance < finalAmount) {
+        throw new Error(
+          'Insufficient wallet balance. Your BOOST order was not charged.'
+        );
       }
 
       transaction.update(userRef, {
-        walletBalance: walletBalance - finalAmount
+        walletBalance: latestBalance - finalAmount
       });
 
       transaction.set(purchaseRef, {
         userId,
         userEmail,
         serviceId,
+        providerServiceId: String(providerServiceId),
+        providerOrderId,
 
         platform: serviceData.platform,
         service: serviceData.service,
@@ -132,6 +242,7 @@ export async function POST(request: Request) {
           'Pending',
 
         status: 'Pending',
+        providerStatus: 'Pending',
         paymentMethod: 'Wallet',
         reference,
 
@@ -150,6 +261,7 @@ export async function POST(request: Request) {
           `${serviceData.platform} ${serviceData.service} (${requestedQuantity})`,
 
         productId: serviceId,
+        providerOrderId,
 
         amount: finalAmount,
 
@@ -167,11 +279,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       status: true,
-      message: 'BOOST order created successfully.',
-      amount: finalAmount
+      message: 'BOOST order sent successfully.',
+      amount: finalAmount,
+      providerOrderId
     });
 
   } catch (error: any) {
+    console.error('BOOST purchase error:', error);
+
     return NextResponse.json(
       {
         status: false,
