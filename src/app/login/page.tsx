@@ -31,10 +31,24 @@ export default function LoginPage() {
       toast({ title: "Welcome Back!", description: "Successfully logged in." });
       router.push('/dashboard');
     } catch (error: any) {
+      let message = "Unable to log in. Please check your email and password and try again.";
+
+      if (error?.code === "auth/network-request-failed") {
+        message = "Unable to connect. Please check your internet connection and try again.";
+      } else if (
+        error?.code === "auth/invalid-credential" ||
+        error?.code === "auth/user-not-found" ||
+        error?.code === "auth/wrong-password"
+      ) {
+        message = "Incorrect email or password. Please try again.";
+      } else if (error?.code === "auth/too-many-requests") {
+        message = "Too many login attempts. Please wait a moment and try again.";
+      }
+
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message || "Invalid email or password."
+        description: message
       });
     } finally {
       setIsLoading(false);
