@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       .digest('hex');
 
     if (
+      signature.length !== expectedSignature.length ||
       !crypto.timingSafeEqual(
         Buffer.from(signature),
         Buffer.from(expectedSignature)
@@ -44,14 +45,20 @@ export async function POST(request: Request) {
     const event = JSON.parse(rawBody);
 
     if (event.event !== 'charge.success') {
-      return NextResponse.json({ status: true, message: 'Event ignored' });
+      return NextResponse.json({
+        status: true,
+        message: 'Event ignored',
+      });
     }
 
     const payment = event.data;
     const reference = payment?.reference;
 
     if (!reference || payment?.status !== 'success') {
-      return NextResponse.json({ status: true, message: 'Payment not successful' });
+      return NextResponse.json({
+        status: true,
+        message: 'Payment not successful',
+      });
     }
 
     const email = payment.customer?.email?.toLowerCase();
@@ -66,18 +73,9 @@ export async function POST(request: Request) {
 
     const db = getAdminDb();
 
-    const existing = await db
-      .collection('transactions')
-      .where('reference', '==', reference)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      return NextResponse.json({
-        status: true,
-        message: 'Payment already processed'
-      });
-    }
+    // The Paystack reference is the unique transaction ID.
+    // This prevents the same payment from being credited twice.
+    const transactionRef = db.collection('transactions').doc(reference);
 
     const users = await db
       .collection('users')
@@ -95,9 +93,17 @@ export async function POST(request: Request) {
     }
 
     const userRef = users.docs[0].ref;
-    const transactionRef = db.collection('transactions').doc();
 
     await db.runTransaction(async (transaction) => {
+      // IMPORTANT:
+      // The transaction checks the payment reference while the
+      // wallet update is also inside the same Firestore transaction.
+      const paymentSnap = await transaction.get(transactionRef);
+
+      if (paymentSnap.exists) {
+        return;
+      }
+
       const userSnap = await transaction.get(userRef);
 
       if (!userSnap.exists) {
@@ -111,7 +117,7 @@ export async function POST(request: Request) {
         walletBalance: currentBalance + amount,
       });
 
-      transaction.set(transactionRef, {
+      transaction.create(transactionRef, {
         userId: userRef.id,
         type: 'funding',
         amount,
@@ -125,12 +131,12 @@ export async function POST(request: Request) {
     });
 
     console.log(
-      `Paystack webhook credited ₦${amount} to user ${userRef.id}. Reference: ${reference}`
+      `Paystack webhook processed ₦${amount} for user ${userRef.id}. Reference: ${reference}`
     );
 
     return NextResponse.json({
       status: true,
-      message: 'Payment processed successfully'
+      message: 'Payment processed successfully',
     });
   } catch (error: any) {
     console.error('Paystack Webhook Error:', error);
@@ -138,7 +144,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         status: false,
-        message: error?.message || 'Webhook processing failed'
+        message: error?.message || 'Webhook processing failed',
       },
       { status: 500 }
     );

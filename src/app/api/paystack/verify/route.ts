@@ -35,15 +35,27 @@ export async function GET(request: Request) {
     const decodedToken = await getAdminAuth().verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
-    const existingTx = await getAdminDb()
-      .collection('transactions')
-      .where('reference', '==', reference)
-      .where('userId', '==', userId)
-      .limit(1)
-      .get();
+    const db = getAdminDb();
 
-    if (!existingTx.empty) {
-      const txData = existingTx.docs[0].data();
+    // Use the Paystack reference itself as the transaction document ID.
+    // This makes the reference unique and prevents duplicate wallet credits.
+    const transactionRef = db.collection('transactions').doc(reference);
+    const userRef = db.collection('users').doc(userId);
+
+    const existingTx = await transactionRef.get();
+
+    if (existingTx.exists) {
+      const txData = existingTx.data() || {};
+
+      if (txData.userId !== userId) {
+        return NextResponse.json(
+          {
+            status: false,
+            message: 'This payment reference belongs to another account.',
+          },
+          { status: 403 }
+        );
+      }
 
       return NextResponse.json({
         status: true,
@@ -91,10 +103,13 @@ export async function GET(request: Request) {
     const userEmail = decodedToken.email?.toLowerCase();
 
     if (!paystackEmail || !userEmail || paystackEmail !== userEmail) {
-      return NextResponse.json({
-        status: false,
-        message: "This payment does not belong to the authenticated user.",
-      }, { status: 403 });
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'This payment does not belong to the authenticated user.',
+        },
+        { status: 403 }
+      );
     }
 
     const paidAmount = Number(data.data.amount) / 100;
@@ -106,10 +121,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const userRef = getAdminDb().collection('users').doc(userId);
-    const transactionRef = getAdminDb().collection('transactions').doc();
+    await db.runTransaction(async (transaction) => {
+      // IMPORTANT:
+      // Read the payment transaction INSIDE the Firestore transaction.
+      // This prevents two simultaneous requests from both crediting the wallet.
+      const paymentSnap = await transaction.get(transactionRef);
 
-    await getAdminDb().runTransaction(async (transaction) => {
+      if (paymentSnap.exists) {
+        return;
+      }
+
       const userSnap = await transaction.get(userRef);
 
       if (!userSnap.exists) {
@@ -123,7 +144,7 @@ export async function GET(request: Request) {
         walletBalance: currentBalance + paidAmount,
       });
 
-      transaction.set(transactionRef, {
+      transaction.create(transactionRef, {
         userId,
         type: 'funding',
         amount: paidAmount,
