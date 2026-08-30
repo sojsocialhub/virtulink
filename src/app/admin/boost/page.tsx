@@ -66,6 +66,7 @@ export default function BoostPage() {
     costPrice: "",
     sellingPrice: "",
     deliveryTime: "",
+    providerServiceId: "",
   });
 
   const userDocRef = useMemoFirebase(
@@ -96,6 +97,7 @@ export default function BoostPage() {
       costPrice: number;
       sellingPrice: number;
       deliveryTime: string;
+      providerServiceId?: string;
     }
   ) => {
     if (!db || !isAdmin) return;
@@ -108,6 +110,9 @@ export default function BoostPage() {
       costPrice: Number(serviceData.costPrice),
       sellingPrice: Number(serviceData.sellingPrice),
       deliveryTime: serviceData.deliveryTime,
+      ...(serviceData.providerServiceId
+        ? { providerServiceId: String(serviceData.providerServiceId).trim() }
+        : {}),
       active: true,
       createdAt: serverTimestamp(),
     });
@@ -142,6 +147,7 @@ export default function BoostPage() {
         costPrice: Number(form.costPrice || 0),
         sellingPrice: Number(form.sellingPrice),
         deliveryTime: form.deliveryTime || "Pending",
+        providerServiceId: form.providerServiceId,
       });
 
       toast({
@@ -156,6 +162,7 @@ export default function BoostPage() {
         costPrice: "",
         sellingPrice: "",
         deliveryTime: "",
+        providerServiceId: "",
       });
     } catch (error) {
       toast({
@@ -319,6 +326,21 @@ export default function BoostPage() {
                   setForm({ ...form, deliveryTime: e.target.value })
                 }
               />
+            </div>
+
+            <div>
+              <Label>Provider Service ID</Label>
+              <Input
+                type="text"
+                placeholder="Example: 59"
+                value={form.providerServiceId}
+                onChange={(e) =>
+                  setForm({ ...form, providerServiceId: e.target.value })
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the service ID from your SMM provider.
+              </p>
             </div>
 
             <div>
