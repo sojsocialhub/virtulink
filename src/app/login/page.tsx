@@ -26,15 +26,43 @@ export default function LoginPage() {
     if (!auth) return;
 
     setIsLoading(true);
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const normalizedEmail = email.trim();
+
+      // Retry only temporary network failures.
+      // Wrong credentials and other authentication errors are not retried.
+      let lastError: any = null;
+      let loginSuccessful = false;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await signInWithEmailAndPassword(auth, normalizedEmail, password);
+          loginSuccessful = true;
+          break;
+        } catch (error: any) {
+          lastError = error;
+
+          if (error?.code !== "auth/network-request-failed" || attempt === 3) {
+            throw error;
+          }
+
+          // Give a temporary connection problem a moment to recover.
+          await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        }
+      }
+
+      if (!loginSuccessful) {
+        throw lastError;
+      }
+
       toast({ title: "Welcome Back!", description: "Successfully logged in." });
       router.push('/dashboard');
     } catch (error: any) {
       let message = "Unable to log in. Please check your email and password and try again.";
 
       if (error?.code === "auth/network-request-failed") {
-        message = "Unable to connect. Please check your internet connection and try again.";
+        message = "We're having trouble connecting to the login service right now. Please try again in a moment.";
       } else if (
         error?.code === "auth/invalid-credential" ||
         error?.code === "auth/user-not-found" ||
