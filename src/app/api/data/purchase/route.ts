@@ -3,14 +3,21 @@ import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 
-const VTPASS_URL = 'https://sandbox.vtpass.com/api/pay';
-const VTPASS_VARIATIONS_URL = 'https://sandbox.vtpass.com/api/service-variations';
+const OGDAMS_URL = 'https://simhosting.ogdams.ng/api/v1';
 
-const NETWORK_SERVICE_IDS: Record<string, string> = {
-  MTN: 'mtn-data',
-  Airtel: 'airtel-data',
-  Glo: 'glo-data',
-  '9mobile': 'etisalat-data',
+const NETWORK_IDS: Record<string, number> = {
+  MTN: 1,
+  Airtel: 2,
+  Glo: 3,
+  '9mobile': 4,
+};
+
+/*
+ * Customer selling prices.
+ * Add more Ogdams plan IDs here as you configure their prices.
+ */
+const SELL_PRICES: Record<string, number> = {
+  '9000': 120,
 };
 
 export async function POST(request: Request) {
@@ -36,7 +43,7 @@ export async function POST(request: Request) {
     const variationCode = String(body.variationCode || '').trim();
     const phoneNumber = String(body.phoneNumber || '').trim();
 
-    if (!NETWORK_SERVICE_IDS[network]) {
+    if (!NETWORK_IDS[network]) {
       return NextResponse.json(
         { status: false, message: 'Invalid network selected.' },
         { status: 400 }
@@ -60,12 +67,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.VTPASS_API_KEY;
-    const publicKey = process.env.VTPASS_PUBLIC_KEY;
-    const secretKey = process.env.VTPASS_SECRET_KEY;
+    const apiKey = process.env.OGDAMS_API_KEY?.trim();
 
-    if (!apiKey || !publicKey || !secretKey) {
-      console.error('VTpass credentials are not configured.');
+    if (!apiKey) {
+      console.error('OGDAMS_API_KEY is not configured.');
 
       return NextResponse.json(
         {
@@ -77,28 +82,32 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Get the real plan information from VTpass.
-     * This prevents the browser from being able to change the price.
+     * Verify that the selected plan exists on Ogdams.
      */
-    const serviceID = NETWORK_SERVICE_IDS[network];
-
-    const variationsResponse = await fetch(
-      `${VTPASS_VARIATIONS_URL}?serviceID=${encodeURIComponent(serviceID)}`,
+    const plansResponse = await fetch(
+      `${OGDAMS_URL}/get/data/plans`,
       {
+        method: 'GET',
         headers: {
-          'api-key': apiKey,
-          'public-key': publicKey,
+          Authorization: `Bearer ${apiKey}`,
+          Accept: 'application/json',
         },
         cache: 'no-store',
       }
     );
 
-    const variationsData = await variationsResponse.json();
+    const plansText = await plansResponse.text();
 
-    if (
-      !variationsResponse.ok ||
-      variationsData?.response_description !== '000'
-    ) {
+    let plansData: any;
+
+    try {
+      plansData = JSON.parse(plansText);
+    } catch {
+      console.error(
+        'Ogdams plans returned invalid JSON:',
+        plansText
+      );
+
       return NextResponse.json(
         {
           status: false,
@@ -108,13 +117,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const variations = Array.isArray(variationsData?.content?.variations)
-      ? variationsData.content.variations
-      : [];
+    if (!plansResponse.ok || plansData?.status === false) {
+      console.error(
+        'Ogdams plans error:',
+        JSON.stringify(plansData)
+      );
 
-    const selectedPlan = variations.find(
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'Unable to verify the selected data plan.',
+        },
+        { status: 502 }
+      );
+    }
+
+    const allPlans = Array.isArray(plansData)
+      ? plansData
+      : Array.isArray(plansData?.data)
+        ? plansData.data
+        : Array.isArray(plansData?.plans)
+          ? plansData.plans
+          : [];
+
+    const selectedPlan = allPlans.find(
       (plan: any) =>
-        String(plan.variation_code || '') === variationCode
+        String(
+          plan?.planId ??
+          plan?.plan_id ??
+          plan?.id ??
+          ''
+        ) === variationCode
     );
 
     if (!selectedPlan) {
@@ -127,13 +160,34 @@ export async function POST(request: Request) {
       );
     }
 
-    const amount = Number(selectedPlan.variation_amount);
+    const planId = Number(
+      selectedPlan?.planId ??
+      selectedPlan?.plan_id ??
+      selectedPlan?.id
+    );
+
+    if (!Number.isFinite(planId)) {
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'Invalid data plan received from Ogdams.',
+        },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * Do not trust the price sent by the browser.
+     * The selling price comes from our server-side price table.
+     */
+    const amount = SELL_PRICES[String(planId)];
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         {
           status: false,
-          message: 'Invalid data plan price received from VTpass.',
+          message:
+            'This data plan is not currently available for purchase.',
         },
         { status: 400 }
       );
@@ -151,6 +205,7 @@ export async function POST(request: Request) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: false,
     }).formatToParts(now);
 
@@ -160,7 +215,7 @@ export async function POST(request: Request) {
 
     const requestId =
       `${dateParts.year}${dateParts.month}${dateParts.day}` +
-      `${dateParts.hour}${dateParts.minute}` +
+      `${dateParts.hour}${dateParts.minute}${dateParts.second}` +
       crypto.randomBytes(6).toString('hex');
 
     const userSnap = await userRef.get();
@@ -191,89 +246,81 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Send the actual purchase to VTpass.
+     * Send the data purchase directly to Ogdams.
      */
-    const vtpassResponse = await fetch(VTPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-        'secret-key': secretKey,
-      },
-      body: JSON.stringify({
-        request_id: requestId,
-        serviceID,
-        billersCode: phoneNumber,
-        variation_code: variationCode,
-        phone: phoneNumber,
-        amount,
-      }),
-      cache: 'no-store',
-    });
+    const ogdamsResponse = await fetch(
+      `${OGDAMS_URL}/vend/data`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          networkId: NETWORK_IDS[network],
+          planId,
+          phoneNumber,
+          reference: requestId,
+        }),
+        cache: 'no-store',
+      }
+    );
 
-    const vtpassData = await vtpassResponse.json();
+    const ogdamsText = await ogdamsResponse.text();
 
-    console.log('VTpass FULL DATA RESPONSE:', JSON.stringify(vtpassData, null, 2));
-    console.log('VTpass PRICING INFO:', {
-      code: vtpassData?.code,
-      transactionId: vtpassData?.content?.transactions?.transactionId,
-      status: vtpassData?.content?.transactions?.status,
-      productName: vtpassData?.content?.transactions?.product_name,
-      amount: vtpassData?.content?.transactions?.amount,
-      amountCharged: vtpassData?.content?.transactions?.amount_charged,
-      commission: vtpassData?.content?.transactions?.commission,
-      discount: vtpassData?.content?.transactions?.discount,
-      totalAmount: vtpassData?.content?.transactions?.total_amount,
-    });
+    let ogdamsData: any;
 
-    console.log('VTpass Data Response:', {
-      httpStatus: vtpassResponse.status,
-      code: vtpassData?.code,
-      responseDescription: vtpassData?.response_description,
-      requestId,
-      network,
-      variationCode,
-    });
-
-    const providerStatus =
-      String(vtpassData?.content?.transactions?.status || '').toLowerCase();
-
-    const providerCode = String(vtpassData?.code || '');
-
-    /*
-     * Do not deduct the customer's wallet unless VTpass confirms delivery.
-     */
-    if (
-      !vtpassResponse.ok ||
-      providerCode !== '000' ||
-      providerStatus !== 'delivered'
-    ) {
-      const isPending =
-        providerStatus === 'pending' ||
-        providerCode === '099' ||
-        /pending/i.test(
-          String(vtpassData?.response_description || '')
-        );
+    try {
+      ogdamsData = JSON.parse(ogdamsText);
+    } catch {
+      console.error(
+        'Ogdams purchase returned invalid JSON:',
+        ogdamsText
+      );
 
       return NextResponse.json(
         {
           status: false,
-          pending: isPending,
-          message: isPending
-            ? 'Your data purchase is still being processed. Your wallet has not been deducted.'
-            : vtpassData?.response_description ||
-              'Data purchase failed. Your wallet has not been deducted.',
+          message:
+            'Data purchase could not be confirmed. Your wallet has not been deducted.',
           requestId,
         },
+        { status: 502 }
+      );
+    }
+
+    console.log(
+      'Ogdams Data Response:',
+      JSON.stringify(ogdamsData, null, 2)
+    );
+
+    /*
+     * Ogdams may return HTTP 202 while the transaction is being processed.
+     * Do not falsely tell the customer the data was delivered.
+     */
+    const providerSuccess =
+      ogdamsResponse.ok &&
+      ogdamsData?.status === true;
+
+    if (!providerSuccess) {
+      return NextResponse.json(
         {
-          status: isPending ? 202 : 400,
-        }
+          status: false,
+          pending: false,
+          message:
+            ogdamsData?.message ||
+            ogdamsData?.response_description ||
+            'Data purchase failed. Your wallet has not been deducted.',
+          requestId,
+        },
+        { status: 400 }
       );
     }
 
     /*
-     * VTpass delivered successfully.
-     * Now perform the wallet deduction and transaction creation atomically.
+     * Ogdams accepted the transaction.
+     * Record it as Pending and deduct the wallet atomically.
      */
     const transactionRef = db.collection('transactions').doc();
 
@@ -303,33 +350,44 @@ export async function POST(request: Request) {
         userId,
         userEmail,
         type: 'data',
-        service: String(selectedPlan.name || 'Data Bundle'),
+        service: String(
+          selectedPlan?.name ||
+          selectedPlan?.planName ||
+          'Data Bundle'
+        ),
         network,
         phoneNumber,
         amount,
         variationCode,
-        serviceID,
+        planId,
+        networkId: NETWORK_IDS[network],
         paymentMethod: 'Wallet',
         reference: requestId,
-        provider: 'VTpass',
-        providerTransactionId:
-          vtpassData?.content?.transactions?.transactionId || '',
-        status: 'Completed',
+        provider: 'Ogdams',
+        providerReference:
+          ogdamsData?.reference ||
+          ogdamsData?.data?.reference ||
+          ogdamsData?.ref ||
+          '',
+        status: 'Pending',
         date: now.toISOString(),
         createdAt: FieldValue.serverTimestamp(),
       });
     });
 
-    return NextResponse.json({
-      status: true,
-      message:
-        `${selectedPlan.name} has been sent to ${phoneNumber}.`,
-      requestId,
-      transactionId:
-        vtpassData?.content?.transactions?.transactionId || null,
-      amount,
-      network,
-    });
+    return NextResponse.json(
+      {
+        status: true,
+        pending: true,
+        message:
+          `${selectedPlan?.name || 'Data bundle'} purchase has been received and is being processed.`,
+        requestId,
+        amount,
+        network,
+        phoneNumber,
+      },
+      { status: 202 }
+    );
   } catch (error: any) {
     console.error('Data Purchase Error:', error);
 
@@ -337,7 +395,8 @@ export async function POST(request: Request) {
       {
         status: false,
         message:
-          error?.message || 'Unable to complete the data purchase.',
+          error?.message ||
+          'Unable to complete the data purchase.',
       },
       { status: 500 }
     );
