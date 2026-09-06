@@ -21,96 +21,63 @@ export default function FundWalletPage() {
   const [amount, setAmount] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
-
-
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-    toast({ title: "Copied!", description: `${field} copied to clipboard.` });
-  };
-  const handlePaystackPayment = () => {
+  const handlePaystackPayment = async () => {
     const amountNum = Number(amount);
 
-    if (!amount || isNaN(amountNum) || amountNum < 100) {
+    if (!amount || !Number.isFinite(amountNum) || amountNum < 100) {
       toast({
         variant: "destructive",
         title: "Invalid amount",
-        description: "Minimum funding amount is ₦100. Please enter a value of 100 or higher."
+        description:
+          "Minimum funding amount is ₦100. Please enter a value of 100 or higher.",
       });
       return;
     }
 
-    if (!publicKey) {
+    if (!user) {
       toast({
         variant: "destructive",
-        title: "Configuration Error",
-        description: "Paystack public key is missing in your environment configuration."
+        title: "Login required",
+        description: "Please log in before funding your wallet.",
       });
       return;
     }
 
-    if (typeof window === "undefined") return;
+    try {
+      const idToken = await user.getIdToken();
 
-    const openPaystack = () => {
-      const PaystackPop = (window as any).PaystackPop;
+      const response = await fetch("/api/paystack/init", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          amount: amountNum,
+        }),
+        cache: "no-store",
+      });
 
-      if (!PaystackPop) {
-        toast({
-          variant: "destructive",
-          title: "Payment Error",
-          description: "Paystack could not be loaded. Please check your internet connection and try again."
-        });
-        return;
+      const data = await response.json();
+
+      if (!response.ok || !data.status || !data.data?.authorization_url) {
+        throw new Error(
+          data.message || "Unable to start Paystack payment."
+        );
       }
 
-      const handler = PaystackPop.setup({
-        key: publicKey,
-        email: user?.email || "",
-        amount: amountNum * 100,
-        ref: `VL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        callback: (response: any) => {
-          router.push(`/fund-wallet/success?reference=${response.reference}`);
-        },
-        onClose: () => {
-          toast({
-            title: "Payment Cancelled",
-            description: "You closed the payment window."
-          });
-        }
-      });
+      window.location.href = data.data.authorization_url;
+    } catch (error: any) {
+      console.error("Paystack payment initialization error:", error);
 
-      handler.openIframe();
-    };
-
-    if ((window as any).PaystackPop) {
-      openPaystack();
-      return;
-    }
-
-    const existingScript = document.querySelector(
-      'script[src="https://js.paystack.co/v2/inline.js"]'
-    );
-
-    if (existingScript) {
-      existingScript.addEventListener("load", openPaystack, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v2/inline.js";
-    script.async = true;
-    script.onload = openPaystack;
-    script.onerror = () => {
       toast({
         variant: "destructive",
         title: "Payment Error",
-        description: "Unable to load Paystack. Please try again."
+        description:
+          error?.message ||
+          "Unable to start payment. Please check your internet connection and try again.",
       });
-    };
-
-    document.body.appendChild(script);
+    }
   };
 
   return (
@@ -173,7 +140,6 @@ export default function FundWalletPage() {
                     Secured by Paystack
                   </div>
                   <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">
-                    {Boolean(publicKey) ? "Key Loaded" : "Key Missing"}
                   </p>
                 </div>
               </CardContent>
