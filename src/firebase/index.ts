@@ -2,24 +2,33 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import {
+  getAuth,
+  Auth,
+  setPersistence,
+  browserLocalPersistence,
+} from 'firebase/auth';
 import { firebaseConfig } from './config';
 
-let firebaseApp: FirebaseApp;
-let firestore: Firestore;
-let auth: Auth;
+let firebaseApp: FirebaseApp | undefined;
+let firestore: Firestore | undefined;
+let auth: Auth | undefined;
+let persistenceConfigured = false;
 
-/**
- * Initializes Firebase services as singletons.
- * Ensures initialization only occurs once and only on the client side.
- */
 export function initializeFirebase() {
   if (typeof window === 'undefined') {
-    return { firebaseApp: null, firestore: null, auth: null };
+    return {
+      firebaseApp: null,
+      firestore: null,
+      auth: null,
+    };
   }
 
   if (!firebaseApp) {
-    firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    firebaseApp =
+      getApps().length > 0
+        ? getApp()
+        : initializeApp(firebaseConfig);
   }
 
   if (!firestore) {
@@ -30,7 +39,19 @@ export function initializeFirebase() {
     auth = getAuth(firebaseApp);
   }
 
-  return { firebaseApp, firestore, auth };
+  if (!persistenceConfigured) {
+    persistenceConfigured = true;
+
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.error('Firebase Auth persistence setup failed:', error);
+    });
+  }
+
+  return {
+    firebaseApp,
+    firestore,
+    auth,
+  };
 }
 
 export * from './provider';

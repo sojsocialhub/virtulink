@@ -1,0 +1,103 @@
+import { NextResponse } from 'next/server';
+
+const VTPASS_VARIATIONS_URL = 'https://sandbox.vtpass.com/api/service-variations';
+
+const NETWORK_SERVICE_IDS: Record<string, string> = {
+  MTN: 'mtn-data',
+  Airtel: 'airtel-data',
+  Glo: 'glo-data',
+  '9mobile': 'etisalat-data',
+};
+
+export async function GET(request: Request) {
+  try {
+    const apiKey = process.env.VTPASS_API_KEY;
+    const publicKey = process.env.VTPASS_PUBLIC_KEY;
+
+    if (!apiKey || !publicKey) {
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'VTpass credentials are not configured.',
+        },
+        { status: 500 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const network = String(searchParams.get('network') || '').trim();
+
+    if (!NETWORK_SERVICE_IDS[network]) {
+      return NextResponse.json(
+        {
+          status: false,
+          message: 'Invalid network selected.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const serviceID = NETWORK_SERVICE_IDS[network];
+
+    const response = await fetch(
+      `${VTPASS_VARIATIONS_URL}?serviceID=${encodeURIComponent(serviceID)}`,
+      {
+        headers: {
+          'api-key': apiKey,
+          'public-key': publicKey,
+        },
+        cache: 'no-store',
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data?.response_description !== '000') {
+      return NextResponse.json(
+        {
+          status: false,
+          message:
+            data?.response_description ||
+            'Unable to load data plans from VTpass.',
+        },
+        { status: 502 }
+      );
+    }
+
+    const variations = Array.isArray(data?.content?.variations)
+      ? data.content.variations
+      : [];
+
+    const plans = variations
+      .map((plan: any) => ({
+        variationCode: String(plan.variation_code || ''),
+        name: String(plan.name || ''),
+        price: Number(plan.variation_amount || 0),
+        fixedPrice: plan.fixedPrice === 'Yes',
+      }))
+      .filter(
+        (plan: any) =>
+          plan.variationCode &&
+          plan.name &&
+          Number.isFinite(plan.price) &&
+          plan.price > 0
+      );
+
+    return NextResponse.json({
+      status: true,
+      network,
+      serviceID,
+      plans,
+    });
+  } catch (error: any) {
+    console.error('Data Plans Error:', error);
+
+    return NextResponse.json(
+      {
+        status: false,
+        message: error?.message || 'Unable to load data plans.',
+      },
+      { status: 500 }
+    );
+  }
+}
