@@ -272,6 +272,7 @@ export default function NewProductPage() {
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="social log">Social Log</SelectItem>
                       <SelectItem value="virtual number">Virtual Number</SelectItem>
                       <SelectItem value="eSIM">eSIM</SelectItem>
                       <SelectItem value="VPN subscription">VPN Subscription</SelectItem>
@@ -279,12 +280,12 @@ export default function NewProductPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price ($)</Label>
+                  <Label htmlFor="price">Price (₦)</Label>
                   <Input 
                     id="price" 
                     type="number" 
-                    step="0.01" 
-                    placeholder="0.00" 
+                    step="1" 
+                    placeholder="e.g. 2500" 
                     value={formData.price}
                     onChange={e => setFormData(prev => ({ ...prev, price: e.target.value }))}
                     required
