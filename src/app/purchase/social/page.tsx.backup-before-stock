@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MessageSquare,
@@ -62,9 +62,6 @@ export default function SocialLogsPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paystack');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [deliveredAccount, setDeliveredAccount] = useState<any>(null);
-  const [stockByProduct, setStockByProduct] = useState<Record<string, number>>({});
-  const [loadingStock, setLoadingStock] = useState(false);
-  const [stockError, setStockError] = useState(false);
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -131,73 +128,6 @@ export default function SocialLogsPage() {
     publicKey
   };
 
-
-  useEffect(() => {
-    if (!rawLogs || rawLogs.length === 0) {
-      setStockByProduct({});
-      return;
-    }
-
-    const loadStock = async () => {
-      setLoadingStock(true);
-      setStockError(false);
-
-      try {
-        const ids = rawLogs
-          .map((log: any) => String(log.id || ''))
-          .filter(Boolean);
-
-        if (ids.length === 0) {
-          setStockByProduct({});
-          return;
-        }
-
-        const response = await fetch(
-          `/api/social-log/stock?productIds=${encodeURIComponent(ids.join(','))}`,
-          { cache: 'no-store' }
-        );
-
-        const result = await response.json();
-
-        if (result.status && result.stock) {
-          setStockByProduct(result.stock);
-          setStockError(false);
-        } else {
-          setStockByProduct({});
-          setStockError(true);
-        }
-      } catch (error) {
-        console.error('Unable to load Social Log stock:', error);
-        setStockByProduct({});
-        setStockError(true);
-      } finally {
-        setLoadingStock(false);
-      }
-    };
-
-    loadStock();
-  }, [rawLogs]);
-
-  const refreshProductStock = async (productId: string) => {
-    try {
-      const response = await fetch(
-        `/api/social-log/stock?productIds=${encodeURIComponent(productId)}`,
-        { cache: 'no-store' }
-      );
-
-      const result = await response.json();
-
-      if (result.status && result.stock) {
-        setStockByProduct((prev) => ({
-          ...prev,
-          [productId]: Number(result.stock[productId] ?? 0)
-        }));
-        setStockError(false);
-      }
-    } catch (error) {
-      console.error('Unable to refresh Social Log stock:', error);
-    }
-  };
 
   const handleOpenModal = (log: any) => {
     if (!user) {
@@ -288,16 +218,8 @@ export default function SocialLogsPage() {
 
       setDeliveredAccount(deliveryData.account);
       setIsModalOpen(false);
-
-      // Refresh the product stock immediately after a successful purchase.
-      await refreshProductStock(selectedProduct.id);
     } catch (error: any) {
       console.error("Social Log wallet purchase error:", error);
-
-      // Refresh stock in case another customer bought the last item.
-      if (selectedProduct?.id) {
-        await refreshProductStock(selectedProduct.id);
-      }
 
       toast({
         variant: "destructive",
@@ -449,33 +371,18 @@ export default function SocialLogsPage() {
               ? log.imageUrl
               : `https://picsum.photos/seed/${log.id}/600/400`;
 
-            const hasStockData = Object.prototype.hasOwnProperty.call(
-              stockByProduct,
-              log.id
-            );
-            const stock = stockByProduct[log.id] ?? 0;
-            const isSoldOut = !loadingStock && !stockError && hasStockData && stock <= 0;
-            const canBuy = !loadingStock && !stockError && hasStockData && stock > 0;
-
             return (
               <Card
                 key={log.id}
                 className="overflow-hidden border-none ring-1 ring-border group hover:shadow-2xl transition-all flex flex-col h-full bg-white rounded-2xl"
               >
                 <div className="relative aspect-video bg-muted">
-                  <img
+                  <Image
                     src={image}
                     alt={name}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-
-                  {isSoldOut && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <Badge className="bg-red-600 text-white font-black text-2xl px-6 py-3 shadow-2xl border-2 border-white">
-                        SOLD OUT
-                      </Badge>
-                    </div>
-                  )}
 
                   <div className="absolute top-4 right-4">
                     <Badge className="bg-white text-primary font-black text-lg px-4 py-1 shadow-xl border-none">
@@ -495,37 +402,12 @@ export default function SocialLogsPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-4 pt-4 mt-auto">
-                  <div className={`text-center font-black text-sm rounded-xl py-3 border ${
-                    loadingStock
-                      ? 'bg-muted text-muted-foreground border-border'
-                      : stockError
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : isSoldOut
-                          ? 'bg-red-50 text-red-700 border-red-200'
-                          : 'bg-green-50 text-green-700 border-green-200'
-                  }`}>
-                    {loadingStock
-                      ? 'CHECKING AVAILABILITY...'
-                      : stockError
-                        ? 'AVAILABILITY CHECK UNAVAILABLE'
-                        : isSoldOut
-                          ? 'ALREADY SOLD — SOLD OUT'
-                          : `AVAILABLE — ${stock} IN STOCK`}
-                  </div>
-
                   <Button
                     onClick={() => handleOpenModal(log)}
-                    disabled={!canBuy}
                     className="w-full font-black h-14 text-lg rounded-xl shadow-lg"
                   >
                     <ShoppingBag className="h-5 w-5 mr-2" />
-                    {loadingStock
-                      ? 'CHECKING...'
-                      : stockError
-                        ? 'UNAVAILABLE'
-                        : isSoldOut
-                          ? 'SOLD OUT'
-                          : 'Buy Account'}
+                    Buy Account
                   </Button>
                 </CardContent>
               </Card>

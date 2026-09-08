@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sparkles, ArrowLeft, Loader2, Plus, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,6 @@ export default function NewProductPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -77,112 +75,18 @@ export default function NewProductPage() {
     setFormData(prev => ({ ...prev, features: newFeatures }));
   };
 
-  const handleImageUpload = async (file: File) => {
-    setIsUploading(true);
-
-    try {
-      const cloudName = 'lgotzmv9';
-      const uploadPreset = 'soj_social_products';
-
-      if (!cloudName || !uploadPreset) {
-        throw new Error('Cloudinary configuration is missing.');
-      }
-
-      const data = new FormData();
-      data.append('file', file);
-      data.append('upload_preset', uploadPreset);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: 'POST',
-          body: data,
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.secure_url) {
-        throw new Error(result.error?.message || 'Image upload failed.');
-      }
-
-      setImageUrl(result.secure_url);
-
-      toast({
-        title: 'Image Uploaded',
-        description: 'Product image uploaded successfully.',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Upload Failed',
-        description: error?.message || 'Unable to upload product image.',
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.name.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Product Name Required',
-        description: 'Please enter a product name.',
-      });
-      return;
-    }
-
-    const price = Number(formData.price);
-
-    if (!Number.isFinite(price) || price <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Price',
-        description: 'Please enter a valid product price.',
-      });
-      return;
-    }
-
     setIsLoading(true);
-
-    try {
-      const { getFirestore, collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-      const { getApp } = await import('firebase/app');
-
-      const db = getFirestore(getApp());
-
-      await addDoc(collection(db, 'Sociallogs'), {
-        name: formData.name.trim(),
-        type: formData.type,
-        price,
-        description: formData.description.trim(),
-        imageUrl: imageUrl || '',
-        features: formData.features.filter((item: string) => item.trim()),
-        targetAudience: formData.targetAudience.trim(),
-        tone: formData.tone,
-        createdAt: serverTimestamp(),
-      });
-
-      toast({
-        title: 'Product Created',
-        description: `${formData.name} has been added successfully.`,
-      });
-
-      router.push('/admin');
-    } catch (error: any) {
-      console.error('Product creation error:', error);
-
-      toast({
-        variant: 'destructive',
-        title: 'Product Creation Failed',
-        description: error?.message || 'Unable to create the product.',
-      });
-    } finally {
+    // Simulate save
+    setTimeout(() => {
       setIsLoading(false);
-    }
+      toast({
+        title: "Product Created",
+        description: `${formData.name} has been added to the catalog.`
+      });
+      router.push('/admin');
+    }, 1000);
   };
 
   return (
@@ -202,55 +106,6 @@ export default function NewProductPage() {
               <CardDescription>Fill in the details to list a new digital product on VirtuLink.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="product-image">Product Image</Label>
-
-                <div className="flex flex-col sm:flex-row gap-4 items-start">
-                  <label
-                    htmlFor="product-image"
-                    className="inline-flex items-center justify-center rounded-xl border border-dashed px-6 py-4 cursor-pointer hover:bg-muted transition-colors"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-5 w-5" />
-                        Choose Product Image
-                      </>
-                    )}
-
-                    <input
-                      id="product-image"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={isUploading}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file);
-                      }}
-                    />
-                  </label>
-
-                  {imageUrl && (
-                    <div className="relative w-40 h-28 overflow-hidden rounded-xl border bg-muted">
-                      <img
-                        src={imageUrl}
-                        alt="Product preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Choose the actual product picture from your phone.
-                </p>
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
