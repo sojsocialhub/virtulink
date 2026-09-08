@@ -198,7 +198,7 @@ export default function NewProductPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           <Card className="border-none ring-1 ring-border shadow-sm">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">Create New Product</CardTitle>
+              <CardTitle className="text-2xl font-bold">Create New Product - Social Log</CardTitle>
               <CardDescription>Fill in the details to list a new digital product on VirtuLink.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
