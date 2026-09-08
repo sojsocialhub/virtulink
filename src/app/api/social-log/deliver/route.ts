@@ -133,6 +133,7 @@ export async function POST(request: Request) {
       });
 
       transaction.set(purchaseRef, {
+        purchaseId: purchaseRef.id,
         userId,
         userEmail,
         productId,

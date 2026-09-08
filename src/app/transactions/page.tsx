@@ -48,8 +48,7 @@ export default function TransactionsPage() {
 
     return query(
       collection(db, 'transactions'),
-      where('userId', '==', user.uid),
-      orderBy('date', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user]);
 
@@ -70,6 +69,23 @@ export default function TransactionsPage() {
 
   const loading = txLoading || purchasesLoading;
 
+  const sortedTransactions = useMemo(() => {
+    if (!transactions) return [];
+
+    return [...transactions].sort((a: any, b: any) => {
+      const getTime = (value: any) => {
+        if (!value) return 0;
+        if (typeof value?.toDate === 'function') {
+          return value.toDate().getTime();
+        }
+        const time = new Date(value).getTime();
+        return Number.isNaN(time) ? 0 : time;
+      };
+
+      return getTime(b.date || b.createdAt) - getTime(a.date || a.createdAt);
+    });
+  }, [transactions]);
+
   const deliveredPurchases = useMemo(() => {
     if (!purchaseRequests) return [];
 
@@ -83,10 +99,20 @@ export default function TransactionsPage() {
   const getPurchaseForTransaction = (tx: any) => {
     if (!deliveredPurchases.length) return null;
 
+    const purchaseById = deliveredPurchases.find(
+      (purchase: any) =>
+        purchase.purchaseId &&
+        tx.purchaseId &&
+        purchase.purchaseId === tx.purchaseId
+    );
+
+    if (purchaseById) return purchaseById;
+
     return (
       deliveredPurchases.find(
         (purchase: any) =>
-          purchase.purchaseId === tx.purchaseId ||
+          purchase.reference &&
+          tx.reference &&
           purchase.reference === tx.reference
       ) || null
     );
@@ -224,7 +250,7 @@ export default function TransactionsPage() {
                 </thead>
 
                 <tbody className="divide-y divide-border">
-                  {transactions.map((tx: any) => {
+                  {sortedTransactions.map((tx: any) => {
                     const purchase = getPurchaseForTransaction(tx);
                     const isSocialLog = tx.type === 'social_log';
 

@@ -62,6 +62,8 @@ export default function SocialLogsPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paystack');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [deliveredAccount, setDeliveredAccount] = useState<any>(null);
+  const [deliveredPurchaseId, setDeliveredPurchaseId] = useState<string | null>(null);
+  const [loadingDeliveredPurchase, setLoadingDeliveredPurchase] = useState(false);
   const [stockByProduct, setStockByProduct] = useState<Record<string, number>>({});
   const [loadingStock, setLoadingStock] = useState(false);
   const [stockError, setStockError] = useState(false);
@@ -218,6 +220,61 @@ export default function SocialLogsPage() {
     setIsModalOpen(true);
   };
 
+  useEffect(() => {
+    if (!db || !user) return;
+
+    const loadLatestDeliveredPurchase = async () => {
+      setLoadingDeliveredPurchase(true);
+
+      try {
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+
+        const snapshot = await getDocs(
+          query(
+            collection(db, 'purchase_requests'),
+            where('userId', '==', user.uid)
+          )
+        );
+
+        const delivered = snapshot.docs
+          .map((item) => ({
+            id: item.id,
+            ...item.data()
+          }))
+          .filter(
+            (item: any) =>
+              item.status === 'delivered' &&
+              item.account
+          )
+          .sort((a: any, b: any) => {
+            const getTime = (value: any) => {
+              if (!value) return 0;
+              if (typeof value?.toDate === 'function') {
+                return value.toDate().getTime();
+              }
+              const time = new Date(value).getTime();
+              return Number.isNaN(time) ? 0 : time;
+            };
+
+            return getTime(b.date || b.createdAt) - getTime(a.date || a.createdAt);
+          });
+
+        if (delivered.length > 0) {
+          setDeliveredAccount(delivered[0].account);
+          setDeliveredPurchaseId(
+            delivered[0].purchaseId || delivered[0].id || null
+          );
+        }
+      } catch (error) {
+        console.error('Unable to load delivered Social Log:', error);
+      } finally {
+        setLoadingDeliveredPurchase(false);
+      }
+    };
+
+    loadLatestDeliveredPurchase();
+  }, [db, user]);
+
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
@@ -287,6 +344,7 @@ export default function SocialLogsPage() {
       });
 
       setDeliveredAccount(deliveryData.account);
+      setDeliveredPurchaseId(deliveryData.purchaseId || null);
       setIsModalOpen(false);
 
       // Refresh the product stock immediately after a successful purchase.
@@ -389,6 +447,11 @@ export default function SocialLogsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {loadingDeliveredPurchase && (
+              <div className="text-sm text-muted-foreground">
+                Loading your saved purchase...
+              </div>
+            )}
             <div>
               <Label>Category</Label>
               <div className="mt-1 rounded-lg border bg-white p-3 font-bold">
@@ -431,6 +494,21 @@ export default function SocialLogsPage() {
                 )}
               </div>
             </div>
+
+            <Button
+              type="button"
+              className="w-full h-12 font-black rounded-xl"
+              onClick={() => router.push('/transactions')}
+            >
+              <CheckCircle2 className="mr-2 h-5 w-5" />
+              View Transaction History
+            </Button>
+
+            {deliveredPurchaseId && (
+              <p className="text-center text-xs text-muted-foreground break-all">
+                Purchase ID: {deliveredPurchaseId}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
