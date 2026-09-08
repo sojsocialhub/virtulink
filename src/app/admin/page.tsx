@@ -157,19 +157,10 @@ export default function AdminDashboard() {
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">Catalog</h2>
-              <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
-                <DialogTrigger asChild><Button className="font-bold rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add Product</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Product Details</DialogTitle></DialogHeader>
-                  <form onSubmit={handleSaveProduct} className="space-y-4 pt-4">
-                    <Input placeholder="Name" value={productForm.name} onChange={e => setProductForm(prev => ({ ...prev, name: e.target.value }))} required />
-                    <Input type="number" placeholder="Price (₦)" value={productForm.price} onChange={e => setProductForm(prev => ({ ...prev, price: e.target.value }))} required />
-                    <Textarea placeholder="Description" value={productForm.description} onChange={e => setProductForm(prev => ({ ...prev, description: e.target.value }))} />
-                    <Input placeholder="Features (comma separated)" value={productForm.features} onChange={e => setProductForm(prev => ({ ...prev, features: e.target.value }))} />
-                    <Button type="submit" disabled={isSavingProduct} className="w-full rounded-xl h-12">{isSavingProduct ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <PackagePlus className="h-4 w-4 mr-2" />} Save Product</Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Link href="/admin/products/new">
+                <Button className="font-bold rounded-xl"><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
+              </Link>
+
             </div>
             <Card className="border-none ring-1 ring-border overflow-hidden rounded-2xl">
               <Table>
