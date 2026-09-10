@@ -30,6 +30,7 @@ import Link from 'next/link';
 export default function AdminDashboard() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [productForm, setProductForm] = useState({
     name: '',
@@ -55,6 +56,55 @@ export default function AdminDashboard() {
   const { data: pendingFunding } = useCollection(fundingQuery);
   const { data: socialLogs } = useCollection(logsQuery);
 
+  const handleImageUpload = async (file: File) => {
+    setIsUploading(true);
+
+    try {
+      const cloudName = 'lgotzmv9';
+      const uploadPreset = 'soj_social_products';
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error('Cloudinary configuration is missing.');
+      }
+
+      const data = new FormData();
+      data.append('file', file);
+      data.append('upload_preset', uploadPreset);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: data,
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.secure_url) {
+        throw new Error(result.error?.message || 'Image upload failed.');
+      }
+
+      setProductForm(prev => ({
+        ...prev,
+        imageUrl: result.secure_url
+      }));
+
+      toast({
+        title: 'Image Uploaded',
+        description: 'Product image uploaded successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: error?.message || 'Unable to upload product image.',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db) return;
@@ -64,7 +114,7 @@ export default function AdminDashboard() {
         name: productForm.name,
         description: productForm.description,
         price: Number(productForm.price),
-        imageUrl: productForm.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
+        imageUrl: productForm.imageUrl || '',
         features: productForm.features.split(',').map(f => f.trim()).filter(f => f !== ''),
         updatedAt: serverTimestamp()
       };
@@ -187,6 +237,172 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+          <Dialog
+            open={isProductModalOpen}
+            onOpenChange={(open) => {
+              setIsProductModalOpen(open);
+              if (!open) {
+                setEditingProduct(null);
+                setProductForm({
+                  name: '',
+                  description: '',
+                  price: '',
+                  imageUrl: '',
+                  features: ''
+                });
+              }
+            }}
+          >
+            <DialogContent className="w-[calc(100%-2rem)] max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black">
+                  {editingProduct ? 'Edit Product' : 'Add Product'}
+                </DialogTitle>
+              </DialogHeader>
+
+              <form onSubmit={handleSaveProduct} className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Product Name</label>
+                  <Input
+                    value={productForm.name}
+                    onChange={(e) =>
+                      setProductForm({ ...productForm, name: e.target.value })
+                    }
+                    placeholder="Product name"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Selling Price (₦)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={productForm.price}
+                    onChange={(e) =>
+                      setProductForm({ ...productForm, price: e.target.value })
+                    }
+                    placeholder="Enter selling price"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Description</label>
+                  <Textarea
+                    value={productForm.description}
+                    onChange={(e) =>
+                      setProductForm({
+                        ...productForm,
+                        description: e.target.value
+                      })
+                    }
+                    placeholder="Product description"
+                    rows={4}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Product Image</label>
+
+                  <div className="flex flex-col gap-3">
+                    <label
+                      htmlFor="admin-product-image"
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-dashed px-4 py-4 cursor-pointer hover:bg-muted transition-colors"
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-5 w-5" />
+                          {productForm.imageUrl ? 'Change Product Image' : 'Choose Product Image'}
+                        </>
+                      )}
+
+                      <input
+                        id="admin-product-image"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={isUploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(file);
+                        }}
+                      />
+                    </label>
+
+                    {productForm.imageUrl && (
+                      <div className="relative w-full h-40 overflow-hidden rounded-xl border bg-muted">
+                        <img
+                          src={productForm.imageUrl}
+                          alt="Product preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      Choose the actual product picture from your phone.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Features</label>
+                  <Textarea
+                    value={productForm.features}
+                    onChange={(e) =>
+                      setProductForm({
+                        ...productForm,
+                        features: e.target.value
+                      })
+                    }
+                    placeholder="Feature 1, Feature 2, Feature 3"
+                    rows={3}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Separate each feature with a comma.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => setIsProductModalOpen(false)}
+                    disabled={isSavingProduct}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    className="flex-1 rounded-xl font-bold"
+                    disabled={isSavingProduct}
+                  >
+                    {isSavingProduct ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="mr-2 h-4 w-4" />
+                        {editingProduct ? 'Save Changes' : 'Save Product'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
       </main>
     </div>
   );

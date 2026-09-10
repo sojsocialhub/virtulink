@@ -1,9 +1,20 @@
-
-"use client";
+ "use client";
 
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import { User, Menu, X, Wallet, LayoutDashboard, History, ShieldAlert, LogIn, UserPlus, LogOut, Banknote } from 'lucide-react';
+import {
+  User,
+  Menu,
+  X,
+  Wallet,
+  LayoutDashboard,
+  History,
+  ShieldAlert,
+  LogIn,
+  UserPlus,
+  Banknote,
+  ChevronDown,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useDoc, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -17,9 +28,12 @@ export default function Navbar() {
   const db = useFirestore();
   const router = useRouter();
 
-  const userDocRef = useMemo(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
-  const { data: userData } = useDoc(userDocRef);
+  const userDocRef = useMemo(
+    () => (db && user ? doc(db, 'users', user.uid) : null),
+    [db, user]
+  );
 
+  const { data: userData } = useDoc(userDocRef);
   const isAdmin = userData?.role === 'admin';
 
   const handleLogout = async () => {
@@ -31,109 +45,255 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-                <Wallet className="h-5 w-5 text-primary-foreground" />
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+        <div className="flex h-[70px] items-center justify-between">
+          {/* Brand */}
+          <Link href="/" className="group flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 shadow-lg shadow-green-600/20 transition group-hover:scale-105">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-lg font-black leading-none tracking-tight text-slate-950">
+                S.O.J <span className="text-green-600">VTU</span>
               </div>
-              <span className="font-headline text-lg font-black tracking-tighter text-primary">S.O.J VTU</span>
-            </Link>
-          </div>
+              <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                Digital Services
+              </div>
+            </div>
+          </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden items-center space-x-4 md:flex">
+          {/* Desktop */}
+          <div className="hidden items-center gap-2 md:flex">
             {user ? (
               <>
-                <Link href="/dashboard" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
-                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                <Link
+                  href="/dashboard"
+                  className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 hover:text-green-600"
+                >
+                  Dashboard
                 </Link>
-                <Link href="/transactions" className="text-sm font-bold flex items-center gap-1.5 hover:text-primary transition-colors text-muted-foreground">
-                  <History className="h-4 w-4" /> History
+
+                <Link
+                  href="/transactions"
+                  className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 hover:text-green-600"
+                >
+                  History
                 </Link>
+
                 {isAdmin && (
                   <Link href="/admin">
-                    <Button variant="destructive" size="sm" className="font-black bg-primary hover:bg-primary/90 text-white border-none shadow-lg">
-                      <ShieldAlert className="h-4 w-4 mr-1.5" /> Admin Hub
+                    <Button
+                      size="sm"
+                      className="ml-1 rounded-lg bg-slate-950 font-bold text-white hover:bg-green-600"
+                    >
+                      <ShieldAlert className="mr-1.5 h-4 w-4" />
+                      Admin Hub
                     </Button>
                   </Link>
                 )}
-                <div className="h-8 w-px bg-border mx-2" />
+
+                <div className="mx-2 h-7 w-px bg-slate-200" />
+
                 <Link href="/profile">
-                  <Button variant="ghost" size="sm" className="rounded-full flex gap-2 font-bold">
-                    <User className="h-4 w-4 text-primary" />
-                    ₦{userData?.walletBalance?.toLocaleString() || '0'}
-                  </Button>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 transition hover:border-green-200 hover:bg-green-50">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-600">
+                      <Wallet className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        Balance
+                      </p>
+                      <p className="text-sm font-black text-slate-900">
+                        ₦{userData?.walletBalance?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                  </div>
                 </Link>
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
-                  <LogOut className="h-4 w-4 mr-1" /> Logout
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="ml-1 font-bold text-slate-500 hover:text-red-600"
+                >
+                  Logout
                 </Button>
               </>
             ) : (
               <>
+                <Link
+                  href="/about"
+                  className="px-3 py-2 text-sm font-bold text-slate-600 transition hover:text-green-600"
+                >
+                  About
+                </Link>
+                <Link
+                  href="/faq"
+                  className="px-3 py-2 text-sm font-bold text-slate-600 transition hover:text-green-600"
+                >
+                  FAQ
+                </Link>
+                <Link
+                  href="/contact"
+                  className="px-3 py-2 text-sm font-bold text-slate-600 transition hover:text-green-600"
+                >
+                  Contact
+                </Link>
+
+                <div className="mx-2 h-7 w-px bg-slate-200" />
+
                 <Link href="/login">
-                  <Button variant="ghost" className="font-bold">
-                    <LogIn className="h-4 w-4 mr-2" /> Login
+                  <Button
+                    variant="ghost"
+                    className="rounded-xl font-bold text-slate-700"
+                  >
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
                   </Button>
                 </Link>
+
                 <Link href="/register">
-                  <Button className="font-bold rounded-full">
-                    <UserPlus className="h-4 w-4 mr-2" /> Join S.O.J VTU
+                  <Button className="rounded-xl bg-green-600 px-5 font-bold text-white shadow-md shadow-green-600/20 hover:bg-green-700">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create Account
                   </Button>
                 </Link>
               </>
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex md:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
-          </div>
+          {/* Mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl md:hidden"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile menu */}
       {isMenuOpen && (
-        <div className="md:hidden border-t bg-background p-4 space-y-4 shadow-xl">
-          <div className="flex flex-col space-y-3">
+        <div className="border-t border-slate-200 bg-white px-4 py-5 shadow-xl md:hidden">
+          <div className="mx-auto max-w-7xl space-y-2">
             {user ? (
               <>
-                <Link href="/dashboard" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                  <LayoutDashboard className="h-5 w-5" /> Dashboard
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl p-3 font-bold text-slate-700 hover:bg-green-50 hover:text-green-700"
+                >
+                  <LayoutDashboard className="h-5 w-5" />
+                  Dashboard
                 </Link>
-                <Link href="/transactions" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                  <History className="h-5 w-5" /> History
+
+                <Link
+                  href="/transactions"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl p-3 font-bold text-slate-700 hover:bg-green-50 hover:text-green-700"
+                >
+                  <History className="h-5 w-5" />
+                  Transaction History
                 </Link>
+
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl bg-slate-50 p-3 font-bold text-slate-700"
+                >
+                  <span className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-green-600" />
+                    Profile
+                  </span>
+                  <span className="font-black text-green-600">
+                    ₦{userData?.walletBalance?.toLocaleString() || '0'}
+                  </span>
+                </Link>
+
                 {isAdmin && (
                   <>
-                    <Link href="/admin" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                      <ShieldAlert className="h-5 w-5" /> Admin Overview
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl bg-slate-950 p-3 font-bold text-white"
+                    >
+                      <ShieldAlert className="h-5 w-5" />
+                      Admin Hub
                     </Link>
-                    <Link href="/admin/funding" className="text-lg font-bold flex items-center gap-2 p-2 bg-primary text-white rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                      <Banknote className="h-5 w-5" /> Funding Requests
+
+                    <Link
+                      href="/admin/funding"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl bg-green-50 p-3 font-bold text-green-700"
+                    >
+                      <Banknote className="h-5 w-5" />
+                      Funding Requests
                     </Link>
                   </>
                 )}
-                <Link href="/profile" className="text-lg font-bold flex items-center gap-2 p-2 hover:bg-muted rounded-lg" onClick={() => setIsMenuOpen(false)}>
-                  <User className="h-5 w-5" /> Profile (₦{userData?.walletBalance?.toLocaleString() || '0'})
-                </Link>
-                <Button variant="destructive" className="w-full font-bold" onClick={handleLogout}>
+
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full rounded-xl font-bold text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={handleLogout}
+                >
                   Logout
                 </Button>
               </>
             ) : (
               <>
-                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="outline" className="w-full font-bold">Login</Button>
+                <Link
+                  href="/about"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl p-3 font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  About
+                  <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
                 </Link>
-                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full font-bold">Create Account</Button>
+
+                <Link
+                  href="/faq"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl p-3 font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  FAQ
+                  <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
                 </Link>
+
+                <Link
+                  href="/contact"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl p-3 font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Contact
+                  <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
+                </Link>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex h-11 items-center justify-center rounded-xl border border-slate-200 font-bold text-slate-700"
+                  >
+                    Login
+                  </Link>
+
+                  <Link
+                    href="/register"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex h-11 items-center justify-center rounded-xl bg-green-600 font-bold text-white"
+                  >
+                    Create Account
+                  </Link>
+                </div>
               </>
             )}
           </div>
