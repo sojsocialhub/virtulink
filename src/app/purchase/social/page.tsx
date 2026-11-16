@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   User,
-  Building2
+  Building2,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +45,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ADMIN_BANK_DETAILS } from '@/lib/data';
+import { validateProductUrl } from '@/lib/social-log-utils';
 
 type PaymentMethod = 'paystack' | 'manual';
 
@@ -452,6 +454,19 @@ export default function SocialLogsPage() {
                 Loading your saved purchase...
               </div>
             )}
+            {deliveredAccount.accountDetails && String(deliveredAccount.accountDetails).trim() ? (
+              <div>
+                <Label>Account Details</Label>
+                <div className="mt-1 space-y-2 rounded-lg border bg-white p-3">
+                  <div className="whitespace-pre-wrap break-words text-sm">{deliveredAccount.accountDetails}</div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(String(deliveredAccount.accountDetails), "Account details")}>
+                    <Copy className="mr-1 h-4 w-4" />
+                    Copy All Details
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div>
               <Label>Category</Label>
               <div className="mt-1 rounded-lg border bg-white p-3 font-bold">
@@ -495,6 +510,9 @@ export default function SocialLogsPage() {
               </div>
             </div>
 
+              </>
+            )}
+
             <Button
               type="button"
               className="w-full h-12 font-black rounded-xl"
@@ -522,6 +540,7 @@ export default function SocialLogsPage() {
           {logs.map((log: any) => {
             const price = getPrice(log);
             const name = log.name || 'Untitled Account';
+            const productLink = validateProductUrl(log.productUrl);
 
             const image = log.imageUrl?.startsWith('http')
               ? log.imageUrl
@@ -605,6 +624,18 @@ export default function SocialLogsPage() {
                           ? 'SOLD OUT'
                           : 'Buy Account'}
                   </Button>
+
+                  {productLink.valid && productLink.url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full font-black h-12 rounded-xl"
+                      onClick={() => window.open(productLink.url, '_blank', 'noopener,noreferrer')}
+                    >
+                      <ExternalLink className="h-5 w-5 mr-2" />
+                      View Product
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );

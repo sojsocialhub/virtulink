@@ -13,6 +13,7 @@ import { generateProductDescription } from '@/ai/flows/generate-product-descript
 import { ProductType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { validateProductUrl } from '@/lib/social-log-utils';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -29,7 +30,8 @@ export default function NewProductPage() {
     description: '',
     features: [''],
     targetAudience: '',
-    tone: 'professional and persuasive'
+    tone: 'professional and persuasive',
+    productUrl: ''
   });
 
   const handleGenerateDescription = async () => {
@@ -146,6 +148,17 @@ export default function NewProductPage() {
       return;
     }
 
+    const urlCheck = validateProductUrl(formData.productUrl);
+
+    if (!urlCheck.valid) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Product URL',
+        description: 'The product URL must start with http:// or https://',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -160,6 +173,7 @@ export default function NewProductPage() {
         price,
         description: formData.description.trim(),
         imageUrl: imageUrl || '',
+        productUrl: urlCheck.url,
         features: formData.features.filter((item: string) => item.trim()),
         targetAudience: formData.targetAudience.trim(),
         tone: formData.tone,
@@ -291,6 +305,21 @@ export default function NewProductPage() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="productUrl">Product URL (optional)</Label>
+                <Input
+                  id="productUrl"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://example.com/product"
+                  value={formData.productUrl}
+                  onChange={e => setFormData(prev => ({ ...prev, productUrl: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Only http:// or https:// links. Customers will see a View Product button.
+                </p>
               </div>
 
               <div className="space-y-4">

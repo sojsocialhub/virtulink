@@ -28,6 +28,7 @@ import {
 } from "@/firebase";
 
 import { useToast } from "@/hooks/use-toast";
+import { getAccountDetailsText } from "@/lib/social-log-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,10 +66,7 @@ export default function SocialInventoryPage() {
 
   const [form, setForm] = useState({
     productId: "",
-    username: "",
-    email: "",
-    password: "",
-    extraDetails: "",
+    accountDetails: "",
   });
 
   const userDocRef = useMemoFirebase(
@@ -111,10 +109,7 @@ export default function SocialInventoryPage() {
   const resetForm = () => {
     setForm({
       productId: "",
-      username: "",
-      email: "",
-      password: "",
-      extraDetails: "",
+      accountDetails: "",
     });
   };
 
@@ -125,14 +120,13 @@ export default function SocialInventoryPage() {
 
     if (
       !form.productId ||
-      !form.username.trim() ||
-      !form.password.trim()
+      !form.accountDetails.trim()
     ) {
       toast({
         variant: "destructive",
         title: "Missing information",
         description:
-          "Please select a product and enter the username and password.",
+          "Please select a product and paste the account details.",
       });
       return;
     }
@@ -154,10 +148,7 @@ export default function SocialInventoryPage() {
       await addDoc(collection(db, "social_log_inventory"), {
         productId: selectedProduct.id,
         productName: selectedProduct.name || "Social Account",
-        username: form.username.trim(),
-        email: form.email.trim(),
-        password: form.password.trim(),
-        extraDetails: form.extraDetails.trim(),
+        accountDetails: form.accountDetails.trim(),
         status: "available",
         createdAt: serverTimestamp(),
       });
@@ -326,62 +317,18 @@ export default function SocialInventoryPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Username / Account</Label>
-                <Input
-                  value={form.username}
-                  onChange={(event) =>
-                    setForm((previous) => ({
-                      ...previous,
-                      username: event.target.value,
-                    }))
-                  }
-                  placeholder="Account username"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm((previous) => ({
-                      ...previous,
-                      email: event.target.value,
-                    }))
-                  }
-                  placeholder="Account email"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input
-                  type="text"
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm((previous) => ({
-                      ...previous,
-                      password: event.target.value,
-                    }))
-                  }
-                  placeholder="Account password"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Extra Details</Label>
+                <Label>Account Details</Label>
                 <Textarea
-                  value={form.extraDetails}
+                  value={form.accountDetails}
                   onChange={(event) =>
                     setForm((previous) => ({
                       ...previous,
-                      extraDetails: event.target.value,
+                      accountDetails: event.target.value,
                     }))
                   }
-                  placeholder="Optional information about this account"
+                  placeholder="Paste the complete account login information here"
+                  className="min-h-[220px] font-mono text-sm"
+                  required
                 />
               </div>
 
@@ -420,8 +367,7 @@ export default function SocialInventoryPage() {
                 <thead>
                   <tr className="border-b bg-muted/20 text-left">
                     <th className="p-4 font-bold">Product</th>
-                    <th className="p-4 font-bold">Username</th>
-                    <th className="p-4 font-bold">Email</th>
+                    <th className="p-4 font-bold">Account Details</th>
                     <th className="p-4 font-bold">Status</th>
                     <th className="p-4 text-right font-bold">Action</th>
                   </tr>
@@ -436,9 +382,9 @@ export default function SocialInventoryPage() {
                           "Social Account"}
                       </td>
 
-                      <td className="p-4">{item.username || "—"}</td>
-
-                      <td className="p-4">{item.email || "—"}</td>
+                      <td className="max-w-[260px] truncate p-4">
+                        {getAccountDetailsText(item).split("\n")[0] || "—"}
+                      </td>
 
                       <td className="p-4">
                         <Badge

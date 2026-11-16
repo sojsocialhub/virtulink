@@ -115,7 +115,8 @@ export async function POST(request: Request) {
         username: inventoryData.username || '',
         email: inventoryData.email || '',
         password: inventoryData.password || '',
-        extraDetails: inventoryData.extraDetails || ''
+        extraDetails: inventoryData.extraDetails || '',
+        accountDetails: String(inventoryData.accountDetails || '')
       };
 
       const newBalance = walletBalance - finalAmount;

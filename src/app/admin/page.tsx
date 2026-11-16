@@ -26,6 +26,7 @@ import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@
 import { collection, addDoc, query, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { validateProductUrl } from '@/lib/social-log-utils';
 
 export default function AdminDashboard() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -37,7 +38,8 @@ export default function AdminDashboard() {
     description: '',
     price: '',
     imageUrl: '',
-    features: ''
+    features: '',
+    productUrl: ''
   });
 
   const db = useFirestore();
@@ -108,6 +110,11 @@ export default function AdminDashboard() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db) return;
+    const urlCheck = validateProductUrl(productForm.productUrl);
+    if (!urlCheck.valid) {
+      toast({ variant: 'destructive', title: 'Invalid Product URL', description: 'The product URL must start with http:// or https://' });
+      return;
+    }
     setIsSavingProduct(true);
     try {
       const payload = {
@@ -115,6 +122,7 @@ export default function AdminDashboard() {
         description: productForm.description,
         price: Number(productForm.price),
         imageUrl: productForm.imageUrl || '',
+        productUrl: urlCheck.url,
         features: productForm.features.split(',').map(f => f.trim()).filter(f => f !== ''),
         updatedAt: serverTimestamp()
       };
@@ -127,7 +135,7 @@ export default function AdminDashboard() {
       }
       setIsProductModalOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '' });
+      setProductForm({ name: '', description: '', price: '', imageUrl: '', features: '', productUrl: '' });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
@@ -217,7 +225,7 @@ export default function AdminDashboard() {
                 <TableHeader><TableRow className="bg-muted/30"><TableHead>Product</TableHead><TableHead>Price</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {socialLogs?.map((prod: any) => (
-                    <TableRow key={prod.id} className="hover:bg-muted/20"><TableCell className="font-bold">{prod.name}</TableCell><TableCell className="font-mono">₦{Number(prod.price || 0).toLocaleString()}</TableCell><TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => { setEditingProduct(prod); setProductForm({ name: prod.name, price: String(prod.price), description: prod.description || '', imageUrl: prod.imageUrl || '', features: prod.features?.join(', ') || '' }); setIsProductModalOpen(true); }}><Edit3 className="h-4 w-4 text-primary" /></Button></TableCell></TableRow>
+                    <TableRow key={prod.id} className="hover:bg-muted/20"><TableCell className="font-bold">{prod.name}</TableCell><TableCell className="font-mono">₦{Number(prod.price || 0).toLocaleString()}</TableCell><TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => { setEditingProduct(prod); setProductForm({ name: prod.name, price: String(prod.price), description: prod.description || '', imageUrl: prod.imageUrl || '', features: prod.features?.join(', ') || '', productUrl: prod.productUrl || '' }); setIsProductModalOpen(true); }}><Edit3 className="h-4 w-4 text-primary" /></Button></TableCell></TableRow>
                   ))}
                   {socialLogs?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground italic">No products in inventory.</TableCell></TableRow>}
                 </TableBody>
@@ -248,7 +256,8 @@ export default function AdminDashboard() {
                   description: '',
                   price: '',
                   imageUrl: '',
-                  features: ''
+                  features: '',
+                  productUrl: ''
                 });
               }
             }}
@@ -301,6 +310,22 @@ export default function AdminDashboard() {
                     placeholder="Product description"
                     rows={4}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold">Product URL (optional)</label>
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    value={productForm.productUrl}
+                    onChange={(e) =>
+                      setProductForm({ ...productForm, productUrl: e.target.value })
+                    }
+                    placeholder="https://example.com/product"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Only http:// or https:// links. Leave blank to hide the View Product button.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
