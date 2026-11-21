@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Loader2, Search } from 'lucide-react';
+import { ChevronLeft, Loader2, Search, Copy } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +15,8 @@ type Item = {
   title: string;
   description: string;
   category: string;
+  price: number;
+  forSale: boolean;
   stock: number;
   outOfStock: boolean;
 };
@@ -26,6 +30,11 @@ export default function VerifiedLogsPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [buyingId, setBuyingId] = useState<number | null>(null);
+  const [delivered, setDelivered] = useState<{ title: string; delivery: string[]; orderId: string } | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +66,52 @@ export default function VerifiedLogsPage() {
     };
   }, [page, query]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/no1verify/orders', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        const data = await res.json();
+        if (!cancelled && data.status) setOrders(data.orders || []);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user, delivered, buyingId]);
+
+  const buy = async (item: Item) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Login required', description: 'Please log in to buy.' });
+      return;
+    }
+    if (!window.confirm(`Buy "${item.title.slice(0, 60)}" for ₦${item.price.toLocaleString()}? This will be taken from your wallet.`)) return;
+    setBuyingId(item.id);
+    const reference = `VL-NV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      const token = await user.getIdToken();
+
+      const res = await fetch('/api/no1verify/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productId: item.id, reference }),
+      });
+      const data = await res.json();
+      if (data.status) {
+        setDelivered({ title: data.title, delivery: data.delivery || [], orderId: data.orderId });
+        toast({ title: 'Purchase successful', description: 'Your account details are shown below.' });
+      } else if (data.pending) {
+        toast({ title: 'Order processing', description: data.message });
+      } else {
+        toast({ variant: 'destructive', title: 'Purchase failed', description: data.message || 'Please try again.' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Connection problem', description: 'Please check My Orders before trying again. Do not pay twice.' });
+    } finally {
+      setBuyingId(null);
+    }
+  };
+
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
     setPage(1);
@@ -79,6 +134,23 @@ export default function VerifiedLogsPage() {
           Browse available accounts. {total > 0 ? `${total.toLocaleString()} products found.` : ''}
         </p>
       </header>
+
+      {delivered && (
+        <Card className="mb-8 border-2 border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-2xl font-black text-green-700">Purchase Successful</CardTitle>
+            <CardDescription>{delivered.title}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="whitespace-pre-wrap break-all rounded-lg border bg-white p-3 text-sm">{delivered.delivery.join('\n')}</div>
+            <Button type="button" variant="outline" onClick={() => { navigator.clipboard.writeText(delivered.delivery.join('\n')); toast({ title: 'Copied', description: 'Account details copied.' }); }}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copy All Details
+            </Button>
+            <p className="break-all text-xs text-muted-foreground">Order ID: {delivered.orderId}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <form onSubmit={submitSearch} className="mb-8 flex gap-2">
         <Input
@@ -118,7 +190,18 @@ export default function VerifiedLogsPage() {
                   <CardDescription className="line-clamp-3 text-sm">{item.description}</CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="mt-auto pt-2" />
+              <CardContent className="mt-auto flex items-center justify-between pt-2">
+                <span className="text-xs text-muted-foreground">ID {item.id}</span>
+                <span className="text-lg font-black text-primary">{item.forSale ? `₦${item.price.toLocaleString()}` : 'Unavailable'}</span>
+              </CardContent>
+              {item.forSale && (
+                <div className="px-6 pb-6">
+                  <Button className="h-12 w-full font-black" disabled={buyingId !== null} onClick={() => buy(item)}>
+                    {buyingId === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {buyingId === item.id ? 'Processing...' : 'Buy Account'}
+                  </Button>
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -133,6 +216,31 @@ export default function VerifiedLogsPage() {
           <Button variant="outline" disabled={page >= pages} onClick={() => setPage((p) => Math.min(p + 1, pages))}>
             Next
           </Button>
+        </div>
+      )}
+
+      {user && orders.length > 0 && (
+        <div className="mt-12">
+          <h2 className="mb-4 text-2xl font-black text-primary">My Orders</h2>
+          <div className="space-y-4">
+            {orders.map((o) => (
+              <Card key={o.id} className="border-none ring-1 ring-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{o.title}</CardTitle>
+                  <CardDescription>₦{Number(o.price).toLocaleString()} · {o.status === 'delivered' ? 'Delivered' : o.status === 'failed' ? 'Refunded' : 'Processing'}</CardDescription>
+                </CardHeader>
+                {o.delivery.length > 0 && (
+                  <CardContent className="space-y-2">
+                    <div className="whitespace-pre-wrap break-all rounded-lg border bg-white p-3 text-sm">{o.delivery.join('\n')}</div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(o.delivery.join('\n')); toast({ title: 'Copied', description: 'Account details copied.' }); }}>
+                      <Copy className="mr-1 h-4 w-4" />
+                      Copy
+                    </Button>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -91,3 +91,49 @@ export async function no1verifyProducts(
     pagination: data?.data?.pagination ?? null,
   };
 }
+
+export async function no1verifyProduct(id: number) {
+  const data = await no1verifyGet(`/products/${id}`);
+  return data?.data ?? null;
+}
+
+export async function no1verifyWalletKobo(): Promise<number> {
+  const data = await no1verifyGet('/wallet');
+  return Number(data?.data?.balance_cents ?? 0);
+}
+
+export async function no1verifyPlaceOrder(productId: number, idempotencyKey: string) {
+  const key = getApiKey();
+  if (!key) throw new No1VerifyError('NO1VERIFY_API_KEY is not configured.', 'confirmed');
+  let response: Response;
+  try {
+    response = await fetch(getApiUrl() + '/orders', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify({ product_id: productId, quantity: 1 }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch {
+    throw new No1VerifyError('Order result unknown (network).', 'ambiguous');
+  }
+  const text = await response.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new No1VerifyError(`Order result unknown (HTTP ${response.status}).`, 'ambiguous');
+  }
+  if (response.status >= 500 || response.status === 429 || response.status === 409) {
+    throw new No1VerifyError(String(data?.message || 'Order result unknown.'), 'ambiguous', data?.code);
+  }
+  if (!response.ok || data?.success === false) {
+    throw new No1VerifyError(String(data?.message || 'Order rejected.'), 'confirmed', data?.code);
+  }
+  return data;
+}

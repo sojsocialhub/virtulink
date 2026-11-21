@@ -156,6 +156,7 @@ export default function AdminDashboard() {
             <Button variant="ghost" className="w-full justify-start"><Banknote className="mr-2 h-4 w-4" /> Funding Requests</Button>
           </Link>
           <Link href="/admin/social-inventory" className="block w-full"><Button variant="ghost" className="w-full justify-start"><ShoppingBag className="mr-2 h-4 w-4" /> Social Log Inventory</Button></Link>
+          <Link href="/admin/no1verify" className="block w-full"><Button variant="ghost" className="w-full justify-start"><ShoppingBag className="mr-2 h-4 w-4" /> Verified Logs Pricing</Button></Link>
           <Link href="/admin/boost" className="block w-full"><Button variant="ghost" className="w-full justify-start">🚀 BOOST Management</Button></Link>
           <Link href="/admin/boost/orders" className="block w-full"><Button variant="ghost" className="w-full justify-start">📦 BOOST Orders</Button></Link>
           <Button variant="ghost" className="w-full justify-start"><UsersIcon className="mr-2 h-4 w-4" /> Customers</Button>
@@ -180,6 +181,7 @@ export default function AdminDashboard() {
              </Button>
            </Link>
            <Link href="/admin/social-inventory"><Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs border-primary/20 bg-primary/5"><ShoppingBag className="h-6 w-6 text-primary" /> Social Log Inventory</Button></Link>
+           <Link href="/admin/no1verify"><Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs border-primary/20 bg-primary/5"><ShoppingBag className="h-6 w-6 text-primary" /> Verified Logs Pricing</Button></Link>
            <Link href="/admin/boost"><Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs border-primary/20 bg-primary/5">🚀 BOOST Management</Button></Link>
            <Link href="/admin/boost/orders"><Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs border-primary/20 bg-primary/5">📦 BOOST Orders</Button></Link>
            <Button variant="outline" className="w-full h-24 flex flex-col gap-2 font-black text-xs opacity-50"><UsersIcon className="h-6 w-6" /> Customers</Button>

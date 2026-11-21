@@ -17,8 +17,11 @@ service cloud.firestore {
     // User profiles
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId
+                      && request.resource.data.role == 'user'
+                      && request.resource.data.walletBalance == 0;
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId
+                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'role']));
       allow delete: if isAdmin();
     }
 
@@ -64,6 +67,20 @@ service cloud.firestore {
     match /Sociallogs/{logId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Social BOOST services
+    match /social_services/{serviceId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // BOOST customer orders
+    match /boost_orders/{orderId} {
+      allow read: if isAuthenticated() &&
+                  (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if false;
+      allow update, delete: if isAdmin();
     }
   }
 }
