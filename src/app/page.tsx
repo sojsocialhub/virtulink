@@ -38,6 +38,13 @@ export default function Home() {
       tag: 'SOCIAL',
     },
     {
+      icon: MessageSquare,
+      title: 'Verified Logs',
+      description: 'Browse verified social media accounts and pay from your S.O.J wallet.',
+      href: '/purchase/verified-logs',
+      tag: 'LOGS',
+    },
+    {
       icon: Rocket,
       title: 'Social Boost',
       description: 'Boost your social media presence with available promotion services.',

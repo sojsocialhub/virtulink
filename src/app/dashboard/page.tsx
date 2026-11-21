@@ -79,6 +79,12 @@ export default function Dashboard() {
       href: '/purchase/social',
     },
     {
+      label: 'Verified Logs',
+      icon: MessageSquare,
+      iconClass: 'bg-indigo-50 text-indigo-600',
+      href: '/purchase/verified-logs',
+    },
+    {
       label: 'Virtual Numbers',
       icon: Phone,
       iconClass: 'bg-orange-50 text-orange-600',
